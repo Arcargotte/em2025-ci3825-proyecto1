@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
-bool compare(char arr1[], char arr2[]){
+bool areEqual(char arr1[], char arr2[]){
 	
 	size_t len = strlen(arr1);
 	if(len > 0 && arr1[len - 1] == '\n'){
@@ -12,27 +13,43 @@ bool compare(char arr1[], char arr2[]){
 	return strcmp(arr1, arr2) == 0;
 }
 
+bool isCommand(char entry[], char commands[][6]){
+
+    // Check if the command matches
+    int i = 0;
+    bool check = false;
+    while(i < 10){
+        check = areEqual(entry, commands[i]);
+        if(check == true){
+            i = 10;
+        }
+        i ++;
+    }
+
+    return check;
+}
+
 int main(void){
 	
 	// Commands' array
 	char arreglo[10][6] = {"touch","rm","mkdir","rmdir","ls","cd","pwd", "wrts", "help", "exit"};
-	printf("%s", arreglo[2]);
-	
-	char *entrada = NULL;
-		
-	size_t n = 6;
-	
-	printf("%s", "\n");
 
-	getline(&entrada, &n, stdin);
+	char *entry = NULL;
+	size_t n = 0;
 
-	bool check = false;
+	getline(&entry, &n, stdin);
+    
+    bool check = isCommand(entry, arreglo);
 
-	printf("%s", entrada);
+    if(check == true){
+        printf("%s", "El comando pertenece a la lista de comandos.");
+    } else{
+        printf("%s", "El comando no pertenece a la lista de comandos, escribe 'help' para ver los comandos.");
+    }
 
-	check = compare(entrada, arreglo[2]);
-
-	printf("%d", check);
+    free(entry);
+    
+	//printf("%d", check);
 
 	return 0;
 }
