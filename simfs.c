@@ -2,6 +2,43 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
+
+typedef struct nodeStruct nodeStruct;
+struct nodeStruct{
+
+    nodeStruct *parent;
+    nodeStruct *child;
+    nodeStruct *sibling; 
+    char name[100];
+    char type;
+    char time[30];
+
+};
+
+typedef struct cmdStruct cmdStruct;
+struct cmdStruct{
+
+    char name[6];
+    char description[100];
+
+};
+
+char * getDateTime() {
+
+    char *buffer = (char*)malloc(30 * sizeof(char));
+    if (!buffer) return NULL;
+
+    time_t t;  
+    struct tm *tm_info;
+    
+    time(&t);  // Obtener tiempo actual
+    tm_info = localtime(&t);  // Convertir a estructura de fecha y hora
+
+    strftime(buffer, 30, "%H:%M-%Y/%m/%d", tm_info); // Formato personalizado
+
+    return buffer;
+}
 
 void strip(char *str) {
 
@@ -63,17 +100,6 @@ bool isCommand(char entry[], char commands[][6]){
     return check;
 }
 
-typedef struct nodeStruct nodeStruct;
-struct nodeStruct{
-
-    nodeStruct *parent;
-    nodeStruct *child;
-    nodeStruct *sibling; 
-    char name[100];
-    char type;
-
-};
-
 void cleanSysFile( nodeStruct *pointer ){
     if(pointer != NULL){
         cleanSysFile(pointer->child);
@@ -83,12 +109,37 @@ void cleanSysFile( nodeStruct *pointer ){
     }
 }
 
+void pwdFunctionForTxt( nodeStruct *pointer, FILE *file){
+    if(pointer != NULL){
+        pwdFunctionForTxt(pointer -> parent, file);
+
+        strcmp(pointer -> name, "/") == 0 ? fprintf(file, "/") :  fprintf(file, "%s/", pointer -> name);
+    }
+}
+
 void pwdFunction( nodeStruct *pointer ){
     if(pointer != NULL){
         pwdFunction(pointer -> parent);
 
         strcmp(pointer -> name, "/") == 0 ? printf("/") :  printf("%s/", pointer -> name);
     }
+}
+
+void printSysFile( nodeStruct *pointer, FILE *file, int longestname ){
+    if(pointer != NULL){
+        fprintf(file, "%s", pointer->name);
+        int pointerlen = strlen(pointer->name);
+        while(pointerlen < longestname + 4){
+            fprintf(file, " ");
+            pointerlen++;
+        }
+        fprintf(file, "%s     %c    ", pointer->time, pointer->type);
+        pwdFunctionForTxt(pointer, file);
+        fprintf(file, "\n");
+        printSysFile(pointer->child, file, longestname);
+        printSysFile(pointer->sibling, file, longestname);
+    }
+    
 }
 
 bool searchFile( nodeStruct **pointer, char * dirName, char fileType){
@@ -122,13 +173,37 @@ bool searchFileForDel( nodeStruct **pointer, nodeStruct **backpointer, char * di
     return dirmatch;
 }
 
-typedef struct cmdStruct cmdStruct;
-struct cmdStruct{
+void helpFunction(cmdStruct * commands){
+    printf("---------------------------------------------\nYou can use the following list of commands: \n");
 
-    char name[6];
-    char description[100];
+    for(int i = 0; i < 10; i++){
+        printf("%s: \n     %s\n", commands[i].name, commands[i].description);
+    }
 
-};
+    printf("---------------------------------------------\n");
+}
+
+void lsFunction(nodeStruct *pointer){
+            
+    while(pointer != NULL){
+        printf("%s     ", pointer->name);
+        pointer = pointer->sibling;
+    }
+
+    printf("\n");
+}
+
+void wrtsFunction(nodeStruct *pointerhead, int longestname){
+    FILE *file = fopen("sysfile.txt", "w");  // "w" crea/sobrescribe el archivo
+    if (file == NULL) {
+        printf("Error al crear el archivo.\n");
+        
+    } else {
+        printSysFile(pointerhead, file, longestname);
+        fclose(file);  // Siempre cerrar el archivo después de usarlo
+        printf("Archivo creado y escrito con éxito.\n");
+    }
+}
 
 /* Cuestiones a tener en cuenta:
 
@@ -149,11 +224,12 @@ struct cmdStruct{
     "./homx/Juegos/Steam"
 */ 
 
-bool pathParser(char *arguments){
+bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
     // dir contendrá cada directorio
     int j = 0;
     int q = 0;
     int cont;
+    int dircont = 1;
     // Este bloque pretende contar para que malloc sepa cuánto espacio de memoria preparar para el directorio
     while( arguments[q] != '\0' ){
         j = q;
@@ -164,7 +240,7 @@ bool pathParser(char *arguments){
         }
         char *dir = (char *)malloc(cont + 1);
         if (dir == NULL) {
-            printf("Error: No se pudo asignar memoria.\n");
+            printf("Error: Assign memory failed.\n");
             return false;
         }
         j = q;
@@ -175,9 +251,39 @@ bool pathParser(char *arguments){
             i++;
         }
         dir[cont] = '\0';
-        printf("Este es el valor de dir: '%s'\n", dir);
+
         // Aqui deberíamos chequear si el directorio existe
-        
+
+        // Decide si es relativa o absoluta
+        if(dircont == 1 && strcmp(dir, "") == 0){
+            *actualpointer = *head;
+        }
+
+        if( strcmp(dir, ".") == 0 ){
+            printf("Dir found: %s\n", (*actualpointer) -> name);
+        } else if(strcmp(dir, "") == 0 && dircont != 1){
+            printf("Error: Invalid route.\n");
+            return false;
+        } else if(strcmp(dir, "..") == 0){
+            if (actualpointer && *actualpointer && (*actualpointer)->parent) {
+                *actualpointer = (*actualpointer)->parent;
+                printf("Dir found: %s\n", (*actualpointer) -> name);
+            } else {
+                printf("Error: Invalid route.\n");
+                free(dir);
+                return false;
+            }
+        } else if (strcmp(dir, "") != 0 && strcmp(dir, "..") != 0 && strcmp(dir, ".") != 0){
+            nodeStruct *pointer = (*actualpointer)->child;
+            if(searchFile(&pointer, dir, 'D')){
+                *actualpointer = pointer;
+            } else {
+                printf("Error: %s not found in %s.\n", dir, (*actualpointer) -> name);
+                free(dir);
+                return false;
+            }
+        }
+
         free(dir);
         if( arguments[j] == '\0' ){
             q = j - 1;
@@ -185,31 +291,22 @@ bool pathParser(char *arguments){
             q = j;
         }
         q++;
+        dircont++;
     }
     return true;
 }
 
 int main(void){
-
     // Case when an entry file is not given
 
-    if(pathParser("  hola   amigo crack ")){
-        printf("Fino\n");
-    }
+    struct nodeStruct head = {NULL, NULL, NULL, "/", 'D', ""};
 
-    struct nodeStruct head = {NULL, NULL, NULL, "/", 'D'};
-    struct nodeStruct home = {&head, NULL, NULL, "home", 'D'};
-    head.child = &home;
+    // This is going to be the way to add a date to each node
+    strcpy(head.time, getDateTime());
+
+    nodeStruct *pathpointer = &head;
     
-    nodeStruct *pathpointer = &home;
-    /*
-        Trying something
-            head.child = &home;
-            home.parent = &head;
-
-            printf("%s", head.name);
-            printf("%s", head.child->name);
-    */
+    int longestname = 0;
 
 	// Commands' array
     cmdStruct touch = {"touch", "Creates a file without any content."};
@@ -222,7 +319,6 @@ int main(void){
     cmdStruct wrts = {"wrts", "Creates a file with the description of the current file system."};
     cmdStruct help = {"help", "Displays commands available in the shell with their description."};
     cmdStruct exit = {"exit", "Finishes execution of the program."};
-
 	cmdStruct commands[10] = {touch, rm, mkdir, rmdir, ls, cd, pwd, wrts, help, exit};
 
 	while(true){
@@ -249,7 +345,6 @@ int main(void){
         }
 
         // Command section
-
             // Asignar memoria dinámica (+1 para el '\0')
             char *command = (char *)malloc(i + 1);  
             if (command == NULL) {  
@@ -262,12 +357,9 @@ int main(void){
                 command[j] = entry[j];
             }
             command[i] = '\0';
-
-
         // ------------------ //
 
         // Arguments section
-
             char * arguments;
 
             if(entry[i] == '\0'){
@@ -300,79 +392,65 @@ int main(void){
 
                 arguments[q] = '\0'; 
             }
-
-        // ------------------
-
+        // -------------------------------------------
+        // This section is used to see what command it's recognizing and what argument too
         // Print the command recognized
-        printf("Command: '%s' \n", command);
-        printf("Arguments: '%s' \n", arguments);
-
+        // printf("Command: '%s' \n", command);
+        // printf("Arguments: '%s' \n", arguments);
         // --------------------------------------------
-
-        //bool check = isCommand(command, arreglo);
-
+        
         // Used to remove empty spaces of the string
         strip(arguments);
 
         // Commands conditionals
-        if( strcmp(command,"exit") == 0 && strcmp(arguments, "") == 0 ){
-            
+        if( strcmp(command, "exit") == 0 && strcmp(arguments, "") == 0 ){
+
             cleanSysFile(&head);
-            
             break;
 
-        } else if( strcmp(command,"pwd") == 0 && strcmp(arguments, "") == 0 ){
+        } else if( strcmp(command, "pwd") == 0 && strcmp(arguments , "") == 0 ){
             
             nodeStruct *pointer = pathpointer;
-            
             pwdFunction(pointer);
-
             printf("\n");
 
-        } else if( strcmp(command, "touch") == 0 ){
+        } else if( strcmp(command, "touch") == 0 && strcmp(arguments, "") != 0 ){
 
-            if(pathpointer -> child == NULL){
-                
-                nodeStruct *newfile = (nodeStruct *)malloc(sizeof(nodeStruct));
-                if (!newfile) {
-                    printf("Memory allocation failed\n");
-                    return 1;
-                }
+            nodeStruct *newfile = (nodeStruct *)malloc(sizeof(nodeStruct));
+            if (!newfile) {
+                printf("Memory allocation failed\n");
+                return 1;
+            }
 
-                newfile->parent = pathpointer;
-                newfile->child = NULL;
-                newfile->sibling = NULL;
-                newfile->type = 'F';
-                
-                strncpy(newfile->name, arguments, sizeof(newfile->name) - 1);
-                newfile->name[sizeof(newfile->name) - 1] = '\0'; 
+            newfile->parent = pathpointer;
+            newfile->child = NULL;
+            newfile->sibling = NULL;
+            newfile->type = 'F';
+            strcpy(newfile->time, getDateTime());
+            
+            strncpy(newfile->name, arguments, sizeof(newfile->name) - 1);
+            newfile->name[sizeof(newfile->name) - 1] = '\0'; 
+
+            // We save the length of the longest file name
+            if(strlen(arguments) > (unsigned)longestname){
+                longestname = strlen(arguments);
+            }
+
+            if(pathpointer->child == NULL){
 
                 pathpointer->child = newfile;
 
             } else {
 
                 nodeStruct *pointer = pathpointer->child;
+
                 while(pointer->sibling != NULL){
                     pointer = pointer->sibling;
                 }
 
-                nodeStruct *newfile = (nodeStruct *)malloc(sizeof(nodeStruct));
-                if (!newfile) {
-                    printf("Memory allocation failed\n");
-                    return 1;
-                }
-
-                newfile->parent = pathpointer;
-                newfile->child = NULL;
-                newfile->sibling = NULL;
-                newfile->type = 'F';
-
-                strncpy(newfile->name, arguments, sizeof(newfile->name) - 1);
-                newfile->name[sizeof(newfile->name) - 1] = '\0'; 
-
                 pointer->sibling = newfile;
-
             }
+
         } else if( strcmp(command, "rm") == 0 ){
             
             nodeStruct *pointer = pathpointer->child;
@@ -394,30 +472,31 @@ int main(void){
         } else if( strcmp(command,"ls") == 0 && strcmp(arguments, "") == 0 ){
 
             nodeStruct *pointer = pathpointer->child;
-            
-            while(pointer != NULL){
-                printf("%s     ", pointer->name);
-                pointer = pointer->sibling;
-            }
-            printf("\n");
+            lsFunction(pointer);
 
         } else if( strcmp(command, "mkdir") == 0 ){
             
-            if(pathpointer -> child == NULL){
-                
-                nodeStruct *newdir = (nodeStruct *)malloc(sizeof(nodeStruct));
-                if (!newdir) {
-                    printf("Memory allocation failed\n");
-                    return 1;
-                }
+            nodeStruct *newdir = (nodeStruct *)malloc(sizeof(nodeStruct));
+            if (!newdir) {
+                printf("Memory allocation failed\n");
+                return 1;
+            }
 
-                newdir->parent = pathpointer;
-                newdir->child = NULL;
-                newdir->sibling = NULL;
-                newdir->type = 'D';
-                
-                strncpy(newdir->name, arguments, sizeof(newdir->name) - 1);
-                newdir->name[sizeof(newdir->name) - 1] = '\0'; 
+            newdir->parent = pathpointer;
+            newdir->child = NULL;
+            newdir->sibling = NULL;
+            newdir->type = 'D';
+            strcpy(newdir->time, getDateTime());
+            
+            strncpy(newdir->name, arguments, sizeof(newdir->name) - 1);
+            newdir->name[sizeof(newdir->name) - 1] = '\0'; 
+
+            // We save the length of the longest file name
+            if(strlen(arguments) > (unsigned)longestname){
+                longestname = strlen(arguments);
+            }
+
+            if(pathpointer -> child == NULL){
 
                 pathpointer->child = newdir;
 
@@ -427,21 +506,6 @@ int main(void){
                 while(pointer->sibling != NULL){
                     pointer = pointer->sibling;
                 }
-
-                nodeStruct *newdir = (nodeStruct *)malloc(sizeof(nodeStruct));
-                if (!newdir) {
-                    printf("Memory allocation failed\n");
-                    return 1;
-                }
-
-                newdir->parent = pathpointer;
-                newdir->child = NULL;
-                newdir->sibling = NULL;
-                newdir->type = 'D';
-
-                strncpy(newdir->name, arguments, sizeof(newdir->name) - 1);
-                newdir->name[sizeof(newdir->name) - 1] = '\0'; 
-
                 pointer->sibling = newdir;
             }
 
@@ -452,7 +516,6 @@ int main(void){
 
             if(searchFileForDel(&pointer, &backpointer, arguments, 'D')){
 
-                //
                 if(pointer->child != NULL){
                     cleanSysFile(pointer->child);
                 }
@@ -470,30 +533,22 @@ int main(void){
 
         } else if( strcmp(command, "cd") == 0 && strcmp(arguments, "") != 0 ){
 
-            nodeStruct *pointer = pathpointer->child;
+            //Pruebas para cd
+            nodeStruct *pointerpath = pathpointer;
+            nodeStruct *pointerhead = &head;
 
-            // Esto es temporal, para poder salir de las carpetas para probar cositas
-            if(strcmp(arguments, "..") != 0){
-                if(searchFile(&pointer, arguments, 'D')){
-                    pathpointer = pointer;
-                } else {
-                    printf("El directorio dado no existe.\n");
-                }
-            } else {
-                pathpointer = pathpointer -> parent;
+            if(pathParser(&pointerpath, &pointerhead, arguments)){
+                pathpointer = pointerpath;
             }
-
-            
 
         } else if( strcmp(command, "help") == 0 && strcmp(arguments, "") == 0 ){
 
-            printf("---------------------------------------------\nYou can use the following list of commands: \n");
+            helpFunction(commands);
 
-            for(int i = 0; i < 10; i++){
-                printf("%s: \n     %s\n", commands[i].name, commands[i].description);
-            }
+        } else if( strcmp(command, "wrts") == 0 && strcmp(arguments, "") == 0 ){
 
-            printf("---------------------------------------------\n");
+            nodeStruct *pointerhead = &head;
+            wrtsFunction(pointerhead, longestname);
 
         } else {
             printf("%s\n", "El comando no pertenece a la lista de comandos, escribe 'help' para ver los comandos.\n");
