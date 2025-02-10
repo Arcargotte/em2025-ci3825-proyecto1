@@ -267,7 +267,6 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
         } else if(strcmp(dir, "..") == 0){
             if (actualpointer && *actualpointer && (*actualpointer)->parent) {
                 *actualpointer = (*actualpointer)->parent;
-                printf("Dir found: %s\n", (*actualpointer) -> name);
             } else {
                 printf("Error: Invalid route.\n");
                 free(dir);
@@ -469,10 +468,15 @@ int main(void){
                 printf("El archivo dado no existe.\n");
             }
 
-        } else if( strcmp(command,"ls") == 0 && strcmp(arguments, "") == 0 ){
+        } else if( strcmp(command,"ls") == 0 ){
 
-            nodeStruct *pointer = pathpointer->child;
-            lsFunction(pointer);
+            //Pruebas para cd
+            nodeStruct *pointerpath = pathpointer;
+            nodeStruct *pointerhead = &head;
+
+            if(pathParser(&pointerpath, &pointerhead, arguments)){
+                lsFunction(pointerpath->child);
+            }
 
         } else if( strcmp(command, "mkdir") == 0 ){
             
