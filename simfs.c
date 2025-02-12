@@ -193,13 +193,13 @@ void lsFunction(nodeStruct *pointer){
     printf("\n");
 }
 
-void wrtsFunction(nodeStruct *pointerhead, int longestname){
+void wrtsFunction(nodeStruct *pointerroot, int longestname){
     FILE *file = fopen("sysfile.txt", "w");  // "w" crea/sobrescribe el archivo
     if (file == NULL) {
         printf("Error al crear el archivo.\n");
         
     } else {
-        printSysFile(pointerhead, file, longestname);
+        printSysFile(pointerroot, file, longestname);
         fclose(file);  // Siempre cerrar el archivo después de usarlo
         printf("Archivo creado y escrito con éxito.\n");
     }
@@ -224,7 +224,7 @@ void wrtsFunction(nodeStruct *pointerhead, int longestname){
     "./homx/Juegos/Steam"
 */ 
 
-bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
+bool pathParser(nodeStruct **currDir, nodeStruct **root, char *arguments){
     // dir contendrá cada directorio
     int j = 0;
     int q = 0;
@@ -256,28 +256,28 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
 
         // Decide si es relativa o absoluta
         if(dircont == 1 && strcmp(dir, "") == 0){
-            *actualpointer = *head;
+            *currDir = *root;
         }
 
         if( strcmp(dir, ".") == 0 ){
-            printf("Dir found: %s\n", (*actualpointer) -> name);
+            printf("Dir found: %s\n", (*currDir) -> name);
         } else if(strcmp(dir, "") == 0 && dircont != 1){
             printf("Error: Invalid route.\n");
             return false;
         } else if(strcmp(dir, "..") == 0){
-            if (actualpointer && *actualpointer && (*actualpointer)->parent) {
-                *actualpointer = (*actualpointer)->parent;
+            if (currDir && *currDir && (*currDir)->parent) {
+                *currDir = (*currDir)->parent;
             } else {
                 printf("Error: Invalid route.\n");
                 free(dir);
                 return false;
             }
         } else if (strcmp(dir, "") != 0 && strcmp(dir, "..") != 0 && strcmp(dir, ".") != 0){
-            nodeStruct *pointer = (*actualpointer)->child;
+            nodeStruct *pointer = (*currDir)->child;
             if(searchFile(&pointer, dir, 'D')){
-                *actualpointer = pointer;
+                *currDir = pointer;
             } else {
-                printf("Error: %s not found in %s.\n", dir, (*actualpointer) -> name);
+                printf("Error: %s not found in %s.\n", dir, (*currDir) -> name);
                 free(dir);
                 return false;
             }
@@ -295,15 +295,90 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
     return true;
 }
 
+bool createFile(char * pathname [], nodeStruct **root, char T){
+    /**
+     * Detecta el archivo objetivo dada una ruta absoluta verificando que
+     * el último carácter sea el caracter nulo "\0" o la concatenacion de las cadenas
+     * "/ + \0".
+     * 
+     * */
+
+    int i = 0; //índice a un caracter de la ruta absoluta
+    int j = 0; //índice al caracter del nombre de una carpeta en la ruta absoluta
+    nodeStruct * currDir = root;
+    nodeStruct * targetDir = root; 
+    int nameSize = 0;
+    int foundTargetFile = 1;
+
+    while (foundTargetFile == 1){
+        //Determina el nombre encontrado de un directorio
+        while((pathname[j] != '/') || (pathname[j] != '\0')){
+            i++;
+            j++;
+            nameSize++;
+        }
+
+        char * fileNameBuffer;
+        fileNameBuffer = (char *)malloc(nameSize);
+
+        //VERIFICAR QUE EL BUFFER SE HAYA CREADO CORRECTAMENTE
+
+        //DETERMINA SI EL NOMBRE DEL DIRECTORIO DADO ES UNA DIRECCIÓN ABSOLUTA O RELATIVA
+        if (strcmp(fileNameBuffer, '.') == 0){
+            fileNameBuffer = currDir->name;
+        } else if (strcmp(fileNameBuffer, '..') == 0){
+            fileNameBuffer == currDir->parent;
+        } else if (strcmp(fileNameBuffer, '/') == 0){
+            //CASO ESPECIAL: SI LA RUTA ABSOLUTA SE DA INICIANDO CON EL CARACTER '/', PASA A LA SIGUIENTE ITERACIÓN
+            i = i + 1;
+            continue;
+        }
+
+        if (pathname[j] == '\0'){
+            foundTargetFile = 0;
+            //DETERMINA EN QUÉ PARTE DEL DIRETORIO ACTUAL DEBE CREARSE EL NUEVO ARCHIVO
+            if (currDir->child != NULL){
+                nodeStruct newFile = {currDir->parent, NULL, NULL, fileNameBuffer, T, getDateTime()};
+            } else{
+                currDir = currDir->child;
+                while (currDir != NULL){
+                    currDir = currDir->sibling;
+                }
+                nodeStruct newFile = {currDir->parent, NULL, NULL, fileNameBuffer, T, getDateTime()};
+            }
+        }
+
+        //CURRDIR SE ACTUALIZA DESCENDIENDO DESDE LA RAÍZ DEL SISTEMA DE ARCHIVOS SI VERIFICA QUE EL DIRECTORIO EXISTE 
+        if ((strcmp(targetDir->name, fileNameBuffer) == 0)){
+            targetDir = targetDir->child;
+        }
+
+        while ((strcmp(targetDir->name, fileNameBuffer) != 0) && targetDir->type == 'D' && targetDir != NULL){
+            targetDir = targetDir->sibling;
+        }
+
+        if (targetDir == NULL){
+            return 1;
+        } //Directorio no encontrado
+
+        currDir = targetDir;
+        j = 0;
+        nameSize = 0;
+        i++;
+    }
+    //EL ARCHIVO SE CREÓ EXITOSAMENTE
+    return 0;
+}
+
 int main(void){
     // Case when an entry file is not given
 
-    struct nodeStruct head = {NULL, NULL, NULL, "/", 'D', ""};
+    struct nodeStruct root = {NULL, NULL, NULL, "/", 'D', ""};
 
     // This is going to be the way to add a date to each node
-    strcpy(head.time, getDateTime());
+    strcpy(root.time, getDateTime());
 
-    nodeStruct *pathpointer = &head;
+    nodeStruct *pathpointer = &root;
     
     int longestname = 0;
 
@@ -404,7 +479,7 @@ int main(void){
         // Commands conditionals
         if( strcmp(command, "exit") == 0 && strcmp(arguments, "") == 0 ){
 
-            cleanSysFile(&head);
+            cleanSysFile(&root);
             break;
 
         } else if( strcmp(command, "pwd") == 0 && strcmp(arguments , "") == 0 ){
@@ -472,9 +547,9 @@ int main(void){
 
             //Pruebas para cd
             nodeStruct *pointerpath = pathpointer;
-            nodeStruct *pointerhead = &head;
+            nodeStruct *pointerroot = &root;
 
-            if(pathParser(&pointerpath, &pointerhead, arguments)){
+            if(pathParser(&pointerpath, &pointerroot, arguments)){
                 lsFunction(pointerpath->child);
             }
 
@@ -539,9 +614,9 @@ int main(void){
 
             //Pruebas para cd
             nodeStruct *pointerpath = pathpointer;
-            nodeStruct *pointerhead = &head;
+            nodeStruct *pointerroot = &root;
 
-            if(pathParser(&pointerpath, &pointerhead, arguments)){
+            if(pathParser(&pointerpath, &pointerroot, arguments)){
                 pathpointer = pointerpath;
             }
 
@@ -551,8 +626,8 @@ int main(void){
 
         } else if( strcmp(command, "wrts") == 0 && strcmp(arguments, "") == 0 ){
 
-            nodeStruct *pointerhead = &head;
-            wrtsFunction(pointerhead, longestname);
+            nodeStruct *pointerroot = &root;
+            wrtsFunction(pointerroot, longestname);
 
         } else {
             printf("%s\n", "El comando no pertenece a la lista de comandos, escribe 'help' para ver los comandos.\n");
