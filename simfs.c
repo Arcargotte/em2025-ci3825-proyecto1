@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <time.h>
 
+int longestname = 0;
+
 typedef struct nodeStruct nodeStruct;
 struct nodeStruct{
 
@@ -104,7 +106,6 @@ void cleanSysFile( nodeStruct *pointer ){
     if(pointer != NULL){
         cleanSysFile(pointer->child);
         cleanSysFile(pointer->sibling);
-        printf("%s\n", pointer->name);
         free(pointer);
     }
 }
@@ -117,10 +118,12 @@ void pwdFunctionForTxt( nodeStruct *pointer, FILE *file){
     }
 }
 
-void pwdFunction( nodeStruct *pointer ){
+void pwdFunction( nodeStruct *currDir ){
+
+    nodeStruct *pointer = currDir;
+
     if(pointer != NULL){
         pwdFunction(pointer -> parent);
-
         strcmp(pointer -> name, "/") == 0 ? printf("/") :  printf("%s/", pointer -> name);
     }
 }
@@ -186,7 +189,7 @@ void helpFunction(cmdStruct * commands){
 void lsFunction(nodeStruct *pointer){
             
     while(pointer != NULL){
-        printf("%s     ", pointer->name);
+        printf("%s\t", pointer->name);
         pointer = pointer->sibling;
     }
 
@@ -194,22 +197,287 @@ void lsFunction(nodeStruct *pointer){
 }
 
 void wrtsFunction(nodeStruct *pointerhead, int longestname){
-    FILE *file = fopen("sysfile.txt", "w");  // "w" crea/sobrescribe el archivo
+    FILE *file = fopen("sysfile.txt", "w");
     if (file == NULL) {
         printf("Error al crear el archivo.\n");
         
     } else {
         printSysFile(pointerhead, file, longestname);
-        fclose(file);  // Siempre cerrar el archivo después de usarlo
+        fclose(file);
         printf("Archivo creado y escrito con éxito.\n");
     }
 }
 
-/* Cuestiones a tener en cuenta:
+void createFile(nodeStruct *dir, char * nameFile, char type){
 
-    if(dir = "." o dir =".."){
-        
+    nodeStruct *newfile = (nodeStruct *)malloc(sizeof(nodeStruct));
+    if (!newfile) {
+        printf("Memory allocation failed\n");
+        return;
     }
+
+    newfile->parent = dir;
+    newfile->child = NULL;
+    newfile->sibling = NULL;
+    newfile->type = type;
+    strcpy(newfile->time, getDateTime());
+    
+    strncpy(newfile->name, nameFile, sizeof(newfile->name) - 1);
+
+    // We save the length of the longest file name
+    if(strlen(nameFile) > (unsigned)longestname){
+        longestname = strlen(nameFile);
+    }
+
+    if(dir->child == NULL){
+
+        dir->child = newfile;
+
+    } else {
+
+        // pointerIndex is used to connect the new file in the tree
+        nodeStruct *pointerIndex = dir->child;
+
+        while(pointerIndex->sibling != NULL){
+            pointerIndex = pointerIndex->sibling;
+        }
+
+        pointerIndex->sibling = newfile;
+    }
+
+}
+
+void deleteFile(nodeStruct *dir, nodeStruct *pathpointer, char *file, char type){
+    
+    nodeStruct *pointer = dir->child;
+    nodeStruct *prev = NULL;
+
+    if(type == 'F'){
+
+        if(searchFileForDel(&pointer, &prev, file, type)){
+
+            if(pointer == dir->child){
+                dir->child = pointer->sibling;
+            } else {
+                prev->sibling = pointer->sibling;
+            }
+            free(pointer);
+
+        } else {
+            printf("El archivo dado no existe.\n");
+        }
+
+    } else {
+
+        if(searchFileForDel(&pointer, &prev, file, type)){
+
+            if(pointer != pathpointer){
+                // Delete the data inside the directory
+                if(pointer->child == NULL){
+                    // Delete the directory
+                    if(pointer == dir->child){
+                        dir->child = pointer->sibling;
+                    } else {
+                        dir->sibling = pointer->sibling;
+                    }
+                    free(pointer);
+
+                } else{
+                    printf("Error: Directory not empty!\n");
+                }
+            } else{
+
+                printf("Error: You can't delete current directory!\n");
+
+            }
+
+        } else {
+            printf("Error: Target directory does not exist!\n");
+        }
+
+    }
+
+}
+
+int map_to_int(char * command, char * arguments){
+    
+    if( strcmp(command, "exit") == 0 && strcmp(arguments, "") == 0 ){
+
+        return 1;
+
+    } else if( strcmp(command, "pwd") == 0 && strcmp(arguments , "") == 0 ){
+
+        return 2;
+
+    } else if( strcmp(command, "touch") == 0 && strcmp(arguments, "") != 0 ){
+
+        return 3;
+
+    } else if( strcmp(command, "rm") == 0 && strcmp(arguments, "") != 0 ){
+
+        return 4;
+
+    } else if( strcmp(command,"ls") == 0 ){
+
+        return 5;
+
+    } else if( strcmp(command, "mkdir") == 0 ){
+        
+        return 6;
+
+    } else if( strcmp(command, "rmdir") == 0 && strcmp(arguments, "") != 0 ){
+
+        return 7;
+
+    } else if( strcmp(command, "cd") == 0 && strcmp(arguments, "") != 0 ){
+
+        return 8;
+
+    } else if( strcmp(command, "help") == 0 && strcmp(arguments, "") == 0 ){
+
+        return 9;
+
+    } else if( strcmp(command, "wrts") == 0 && strcmp(arguments, "") == 0 ){
+
+        return 10;
+
+    } else {
+        
+        return 11;
+
+    }
+}
+
+/*
+    Cuestiones a tener en cuenta para la función splitPath
+    1) /home                  |  file = home    |   dir = "/"
+    2) ./home/Juegos          |  file = Juegos  |   dir = ./home/
+    3) home                   |  file = home    |   dir = ""
+*/
+
+/**
+ * @brief This function splits a path in two different parts: First one is the path to the target directory 
+ *        and second one the name of the target file.
+ * 
+ * @param path String with the pathname.
+ * @param dirs String variable where the path with format "d0/d1/d2/.../dn" where di is the ith directory is going to be saved.
+ * @param file String variable where the name of the file is going to be saved.
+ * @return bool True if splitting was succesfull, False otherwise.
+ */
+bool splitPath(char *path, char **dirs, char **file){
+    // Index to ith char of the path
+    int size = strlen(path);  
+
+    if(size == 0){
+        printf("Error: Invalid Path!\n");
+        return false;
+    }
+
+    int i = size - 1;
+
+    while(path[i] != '/' && i != -1){
+        i--;
+    }
+
+    // Index to the first char of last file in path
+    int fileNameSize = size - i;
+    
+    *file = (char *)malloc(fileNameSize + 1);  
+    if (*file == NULL) {  
+        printf("Memory Error\n");
+        return false;  
+    }
+
+    // Saves in stack name of target file to create
+    int j = i + 1;
+    i = 0;
+    while(j < size){
+        (*file)[i] = path[j];
+        i++;
+        j++;
+    }
+    (*file)[i] = '\0';
+
+    *dirs = (char *)malloc(size - fileNameSize + 2);  
+    if (*dirs == NULL) {  
+        printf("Memory Error\n");
+        free(*file);
+        return false;  
+    }
+
+    //
+    i = 0;
+    while(i != size - fileNameSize + 1){
+        (*dirs)[i] = path[i];
+        i++;
+    }
+    (*dirs)[i] = '\0';
+    
+    return true;
+}
+
+
+
+void inputParser(char *input, char **command, char **arguments){
+
+    //Determine memory space for command
+    int i = 0;
+    while (input[i] != ' ' && input[i] != '\0') {
+        i++;
+    }
+
+    // Command section
+    // Assign dynamic memory
+    *command = (char *)malloc(i + 1);  
+    if (*command == NULL) {  
+        printf("Memory Error\n");
+        return;  
+    }
+
+    // Copiar los caracteres
+    for (int j = 0; j < i; j++) {
+        (*command)[j] = input[j];
+    }
+    (*command)[i] = '\0';
+    // ------------------ //
+
+    // Arguments section
+
+    if(input[i] == '\0'){
+        // Null argument
+        *arguments = "";
+
+    } else {
+        
+        int j = i + 1;
+        int q = 0;
+
+        // Determine memory space for arguments
+        while (input[j] != '\0') {
+            j++;
+            q++;
+        }
+
+        // Assign dynamic memory
+        *arguments = (char *)malloc(q + 1);
+        
+        if (*arguments == NULL) {  
+            free(*command);
+            printf("Memory Error\n");
+            return;  
+        }
+
+        // Copy string
+        for (int j = 0; j < q; j++) {
+            (*arguments)[j] = input[j + i + 1];
+        }
+
+        (*arguments)[q] = '\0'; 
+    }
+
+}
+
+/* Cuestiones a tener en cuenta:
 
     Manejar con variable variable que sea dir
     1) ./path//                                         | "//" esto será ""    if dir = ""
@@ -220,6 +488,7 @@ void wrtsFunction(nodeStruct *pointerhead, int longestname){
     6) ../                                              | VALIDO 
     7) home                                             | Mientras se guardar en el dir, es decir, dir = home y se verifica en la carpeta
     8) home     crack  amigo                            | Tendría dir = "home     crack  amigo" y buscaría esa carpeta
+    9) 
 
     "./homx/Juegos/Steam"
 */ 
@@ -239,10 +508,12 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
             cont++;
         }
         char *dir = (char *)malloc(cont + 1);
+        // If memory allocation fails
         if (dir == NULL) {
             printf("Error: Assign memory failed.\n");
             return false;
         }
+        // Restart the variable j to copy the directory
         j = q;
         int i = 0;
         while( j < q + cont ){
@@ -254,7 +525,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
 
         // Aqui deberíamos chequear si el directorio existe
 
-        // Decide si es relativa o absoluta
+        // Decide si la dirección es absoluta
         if(dircont == 1 && strcmp(dir, "") == 0){
             *actualpointer = *head;
         }
@@ -263,6 +534,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
             printf("Dir found: %s\n", (*actualpointer) -> name);
         } else if(strcmp(dir, "") == 0 && dircont != 1){
             printf("Error: Invalid route.\n");
+            free(dir);
             return false;
         } else if(strcmp(dir, "..") == 0){
             if (actualpointer && *actualpointer && (*actualpointer)->parent) {
@@ -295,267 +567,199 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
     return true;
 }
 
+void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
+
+    char *dirs;
+    char *file;
+    if(splitPath(path, &dirs, &file)){
+        
+        nodeStruct *pointerpath = currDir;
+        nodeStruct *pointerhead = root;
+
+        if(pathParser(&pointerpath, &pointerhead, dirs)){
+            createFile(pointerpath, file, 'F');
+        }
+        free(dirs);
+        free(file);
+    }
+
+}
+
+void mkdirFuction(char *path, nodeStruct *currDir, nodeStruct *root){
+
+    char *dirs;
+    char *file;
+    if(splitPath(path, &dirs, &file)){
+
+        nodeStruct *pointerpath = currDir;
+        nodeStruct *pointerhead = root;
+
+        if(pathParser(&pointerpath, &pointerhead, dirs)){
+            createFile(pointerpath, file, 'D');
+        }
+        free(dirs);
+        free(file);
+    }
+
+}
+
+void cdFunction(char *path, nodeStruct **currDir, nodeStruct *root){
+
+    nodeStruct *pointerpath = *currDir;
+    nodeStruct *pointerhead = root;
+
+    if(pathParser(&pointerpath, &pointerhead, path)){
+        *currDir = pointerpath;
+    }
+}
+
 int main(void){
+
     // Case when an entry file is not given
-
     struct nodeStruct head = {NULL, NULL, NULL, "/", 'D', ""};
-
-    // This is going to be the way to add a date to each node
-    strcpy(head.time, getDateTime());
 
     nodeStruct *pathpointer = &head;
     
-    int longestname = 0;
-
 	// Commands' array
-    cmdStruct touch = {"touch", "Creates a file without any content."};
-    cmdStruct rm = {"rm", "Erases file with the target name."};
-    cmdStruct mkdir = {"mkdir", "Creates a directory with the given name."};
-    cmdStruct rmdir = {"rmdir", "Erases target directory."};
-    cmdStruct ls = {"ls", "Prints all files and directories in target directory."};
-    cmdStruct cd = {"cd", "Changes from current directory to target."};
-    cmdStruct pwd = {"pwd", "Prints absolute path of current location."};
-    cmdStruct wrts = {"wrts", "Creates a file with the description of the current file system."};
-    cmdStruct help = {"help", "Displays commands available in the shell with their description."};
-    cmdStruct exit = {"exit", "Finishes execution of the program."};
-	cmdStruct commands[10] = {touch, rm, mkdir, rmdir, ls, cd, pwd, wrts, help, exit};
+    cmdStruct commands[10] = {
+        {"touch", "Creates a file without any content.\n"},
+        {"rm", "Erases file with the target name.\n"},
+        {"mkdir", "Creates a directory with the given name.\n"},
+        {"rmdir", "Erases target directory.\n"},
+        {"ls", "Prints all files and directories in target directory.\n"},
+        {"cd", "Changes from current directory to target.\n"},
+        {"pwd", "Prints absolute path of current location.\n"},
+        {"wrts", "Creates a file with the description of the current file system.\n"},
+        {"help", "Displays commands available in the shell with their description.\n"},
+        {"exit", "Finishes execution of the program.\n"}
+    };
 
-	while(true){
+    bool cmdON = true;
+
+	while(cmdON){
         char *entry = NULL;
         size_t n = 0;
 
-        // Get new command
+        // Get new entry
         printf("%s", "> ");
         getline(&entry, &n, stdin);
 
+        // Put the terminate char to the entry
         size_t len = strlen(entry);
         if (len > 0 && entry[len - 1] == '\n') {
             entry[len - 1] = '\0';
         }
 
-        // We need to find a way to separate the command and the argument.
-        // We could find the first empty char in the string and whatever is before would be the command
-        // whatever is after would be the argument(s)
-
-        // Determinar el tamaño necesario
-        int i = 0;
-        while (entry[i] != ' ' && entry[i] != '\0') {
-            i++;
-        }
-
-        // Command section
-            // Asignar memoria dinámica (+1 para el '\0')
-            char *command = (char *)malloc(i + 1);  
-            if (command == NULL) {  
-                printf("Memory Error\n");
-                return 1;  
-            }
-
-            // Copiar los caracteres
-            for (int j = 0; j < i; j++) {
-                command[j] = entry[j];
-            }
-            command[i] = '\0';
-        // ------------------ //
-
-        // Arguments section
-            char * arguments;
-
-            if(entry[i] == '\0'){
-                // Argumentos nulos
-                arguments = "";
-
-            } else {
-                
-                int j = i + 1;
-                int q = 0;
-
-                // Determinar el tamaño necesario
-                while (entry[j] != '\0') {
-                    j++;
-                    q++;
-                }
-
-                // Asignar memoria dinámica (+1 para el '\0')
-                arguments = (char *)malloc(q + 1);
-                
-                if (arguments == NULL) {  
-                    printf("Memory Error\n");
-                    return 1;  
-                }
-
-                // Copiar los caracteres
-                for (int j = 0; j < q; j++) {
-                    arguments[j] = entry[j + i + 1];
-                }
-
-                arguments[q] = '\0'; 
-            }
-        // -------------------------------------------
-        // This section is used to see what command it's recognizing and what argument too
-        // Print the command recognized
-        // printf("Command: '%s' \n", command);
-        // printf("Arguments: '%s' \n", arguments);
-        // --------------------------------------------
+        char *command;
+        char *arguments;
+        inputParser(entry, &command, &arguments);
         
-        // Used to remove empty spaces of the string
+        // Used to remove empty spaces of the argument
         strip(arguments);
+        
+        // Map command to integer
+        int cmd = map_to_int(command, arguments);
 
-        // Commands conditionals
-        if( strcmp(command, "exit") == 0 && strcmp(arguments, "") == 0 ){
+        // Determine what command the user is calling
+        switch (cmd){
 
-            cleanSysFile(&head);
-            break;
-
-        } else if( strcmp(command, "pwd") == 0 && strcmp(arguments , "") == 0 ){
-            
-            nodeStruct *pointer = pathpointer;
-            pwdFunction(pointer);
-            printf("\n");
-
-        } else if( strcmp(command, "touch") == 0 && strcmp(arguments, "") != 0 ){
-
-            nodeStruct *newfile = (nodeStruct *)malloc(sizeof(nodeStruct));
-            if (!newfile) {
-                printf("Memory allocation failed\n");
-                return 1;
+            //exit
+            case 1: {
+                cleanSysFile(&head);
+                cmdON = false;
+                break;
             }
 
-            newfile->parent = pathpointer;
-            newfile->child = NULL;
-            newfile->sibling = NULL;
-            newfile->type = 'F';
-            strcpy(newfile->time, getDateTime());
-            
-            strncpy(newfile->name, arguments, sizeof(newfile->name) - 1);
-            newfile->name[sizeof(newfile->name) - 1] = '\0'; 
-
-            // We save the length of the longest file name
-            if(strlen(arguments) > (unsigned)longestname){
-                longestname = strlen(arguments);
+            //pwd
+            case 2: {
+                pwdFunction(pathpointer);
+                printf("\n");
+                break;
             }
 
-            if(pathpointer->child == NULL){
+            //touch
+            case 3: {
+                touchFunction(arguments, pathpointer, &head);
+                break;
+            }
 
-                pathpointer->child = newfile;
+            //rm
+            case 4: {
+                char *dirs;
+                char *file;
+                if(splitPath(arguments, &dirs, &file)){
 
-            } else {
+                    nodeStruct *cpy_pathpointer = pathpointer;
+                    nodeStruct *pointerhead = &head;
 
-                nodeStruct *pointer = pathpointer->child;
-
-                while(pointer->sibling != NULL){
-                    pointer = pointer->sibling;
+                    if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
+                        deleteFile(cpy_pathpointer, pathpointer, file, 'F');
+                    }
+                    free(dirs);
+                    free(file);
                 }
-
-                pointer->sibling = newfile;
+                break;
             }
 
-        } else if( strcmp(command, "rm") == 0 ){
-            
-            nodeStruct *pointer = pathpointer->child;
-            nodeStruct *backpointer = NULL;
+            //ls
+            case 5: {
+                nodeStruct *pointerpath = pathpointer;
+                nodeStruct *pointerhead = &head;
 
-            if(searchFileForDel(&pointer, &backpointer, arguments, 'F')){
-
-                if(pointer == pathpointer -> child){
-                    pathpointer -> child = pointer -> sibling;
-                } else {
-                    backpointer -> sibling = pointer -> sibling;
+                if(pathParser(&pointerpath, &pointerhead, arguments)){
+                    lsFunction(pointerpath->child);
                 }
-                free(pointer);
-
-            } else {
-                printf("El archivo dado no existe.\n");
+                break;
             }
 
-        } else if( strcmp(command,"ls") == 0 ){
-
-            //Pruebas para cd
-            nodeStruct *pointerpath = pathpointer;
-            nodeStruct *pointerhead = &head;
-
-            if(pathParser(&pointerpath, &pointerhead, arguments)){
-                lsFunction(pointerpath->child);
+            //mkdir
+            case 6: {
+                mkdirFuction(arguments, pathpointer, &head);
+                break;
             }
 
-        } else if( strcmp(command, "mkdir") == 0 ){
-            
-            nodeStruct *newdir = (nodeStruct *)malloc(sizeof(nodeStruct));
-            if (!newdir) {
-                printf("Memory allocation failed\n");
-                return 1;
-            }
+            //rmdir
+            case 7: { 
+                char *dirs;
+                char *file;
+                if(splitPath(arguments, &dirs, &file)){
 
-            newdir->parent = pathpointer;
-            newdir->child = NULL;
-            newdir->sibling = NULL;
-            newdir->type = 'D';
-            strcpy(newdir->time, getDateTime());
-            
-            strncpy(newdir->name, arguments, sizeof(newdir->name) - 1);
-            newdir->name[sizeof(newdir->name) - 1] = '\0'; 
+                    nodeStruct *cpy_pathpointer = pathpointer;
+                    nodeStruct *pointerhead = &head;
 
-            // We save the length of the longest file name
-            if(strlen(arguments) > (unsigned)longestname){
-                longestname = strlen(arguments);
-            }
-
-            if(pathpointer -> child == NULL){
-
-                pathpointer->child = newdir;
-
-            } else {
-
-                nodeStruct *pointer = pathpointer->child;
-                while(pointer->sibling != NULL){
-                    pointer = pointer->sibling;
+                    if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
+                        // Verify if current directory is target directory
+                        deleteFile(cpy_pathpointer, pathpointer, file, 'D');
+                    }
+                    free(dirs);
+                    free(file);
                 }
-                pointer->sibling = newdir;
+                break;
             }
 
-        } else if( strcmp(command, "rmdir") == 0 && strcmp(arguments, "") != 0 ){
-
-            nodeStruct *pointer = pathpointer->child;
-            nodeStruct *backpointer = NULL;
-
-            if(searchFileForDel(&pointer, &backpointer, arguments, 'D')){
-
-                if(pointer->child != NULL){
-                    cleanSysFile(pointer->child);
-                }
-
-                if(pointer == pathpointer -> child){
-                    pathpointer -> child = pointer -> sibling;
-                } else {
-                    backpointer -> sibling = pointer -> sibling;
-                }
-                free(pointer);
-
-            } else {
-                printf("El directorio dado no existe.\n");
+            //cd
+            case 8: {
+                cdFunction(arguments, &pathpointer, &head);
+                break;
             }
 
-        } else if( strcmp(command, "cd") == 0 && strcmp(arguments, "") != 0 ){
-
-            //Pruebas para cd
-            nodeStruct *pointerpath = pathpointer;
-            nodeStruct *pointerhead = &head;
-
-            if(pathParser(&pointerpath, &pointerhead, arguments)){
-                pathpointer = pointerpath;
+            //help
+            case 9: {
+                helpFunction(commands);
+                break;
             }
 
-        } else if( strcmp(command, "help") == 0 && strcmp(arguments, "") == 0 ){
+            //wrts
+            case 10:{
+                nodeStruct *pointerhead = &head;
+                wrtsFunction(pointerhead, longestname);
+                break;
+            }
 
-            helpFunction(commands);
-
-        } else if( strcmp(command, "wrts") == 0 && strcmp(arguments, "") == 0 ){
-
-            nodeStruct *pointerhead = &head;
-            wrtsFunction(pointerhead, longestname);
-
-        } else {
-            printf("%s\n", "El comando no pertenece a la lista de comandos, escribe 'help' para ver los comandos.\n");
+            //otherwise
+            case 11:
+                printf("Not valid command, write help to see the list of commands availables\n");
+                break;
         }
 
         free(arguments);
