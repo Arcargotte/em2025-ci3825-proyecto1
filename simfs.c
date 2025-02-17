@@ -86,22 +86,6 @@ bool areEqual(char arr1[], char arr2[]){
 	return strcmp(arr1, arr2) == 0;
 }
 
-bool isCommand(char entry[], char commands[][6]){
-
-    // Check if the command matches
-    int i = 0;
-    bool check = false;
-    while(i < 10){
-        check = areEqual(entry, commands[i]);
-        if(check == true){
-            i = 10;
-        }
-        i ++;
-    }
-
-    return check;
-}
-
 void cleanSysFile( nodeStruct *pointer ){
     if(pointer != NULL){
         cleanSysFile(pointer->child);
