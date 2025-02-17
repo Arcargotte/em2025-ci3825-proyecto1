@@ -26,76 +26,87 @@ struct cmdStruct{
 
 };
 
+/**
+ * @brief This function is used to get the actual date and time.
+ * 
+ * @param void.
+ * @return Returns the formatted string with date and time.
+ */
 char * getDateTime() {
 
+    // Uses malloc so we can usea this variable out of the function
     char *buffer = (char*)malloc(30 * sizeof(char));
     if (!buffer) return NULL;
 
     time_t t;  
     struct tm *tm_info;
     
-    time(&t);  // Obtener tiempo actual
-    tm_info = localtime(&t);  // Convertir a estructura de fecha y hora
+    time(&t);  // Get time
+    tm_info = localtime(&t);  // Convert to localtime struct
 
-    strftime(buffer, 30, "%H:%M-%Y/%m/%d", tm_info); // Formato personalizado
+    strftime(buffer, 30, "%H:%M-%Y/%m/%d", tm_info);
 
     return buffer;
 }
 
+/**
+ * @brief This function removes empty spaces on the two sides of the string
+ * 
+ * @param str Variable you want to strip.
+ * @return Returns the string without empty spaces.
+ */
 void strip(char *str) {
 
     if(strcmp(str, "") != 0){
         int inicio = 0, fin = strlen(str) - 1;
 
-        // Mover el inicio hasta el primer carácter no vacío
+        // Moves until it gets the first empty space
         while (str[inicio] == ' ') {
             inicio++;
         }
 
-        // Mover el fin hacia atrás hasta encontrar un carácter no vacío
+        // Moves the final pointer until it finds the last empty space
         while (fin > inicio && str[fin] == ' ') {
             fin--;
         }
 
-        // Desplazar la cadena para eliminar los espacios al inicio
+        // Move the char to finally eliminate empty spaces
         int i, j = 0;
         for (i = inicio; i <= fin; i++) {
             str[j++] = str[i];
         }
-        str[j] = '\0'; // Agregar el terminador de cadena
-
-        //str = realloc(str, j * sizeof(char));     Pending TASK!!!
+        str[j] = '\0'; // Add terminator
     }
     
 }
 
 /**
- * @brief This function is used to determine if two strings are equal.
+ * @brief This function is used to delete the whole tree or a subtree. 
  * 
- * @param arr1 First String.
- * @param arr2 Second String.
- * @return bool True if they are equal, False if they are not.
+ * @param pointer Pointer to the first node of the subtree to be deleted.
+ * @return void
  */
-bool areEqual(char arr1[], char arr2[]){
-	
-	size_t len = strlen(arr1);
-	if(len > 0 && arr1[len - 1] == '\n'){
-		arr1[len-1] = '\0';
-	}
-	
-	return strcmp(arr1, arr2) == 0;
-}
-
 void cleanSysFile( nodeStruct *pointer ){
     if(pointer != NULL){
+        // First delete child
         cleanSysFile(pointer->child);
+        // Then sibling
         cleanSysFile(pointer->sibling);
+
+        // At the end, the actual pointer
         if(pointer->parent != NULL){
             free(pointer);
         }
     }
 }
 
+/**
+ * @brief This function prints pwd in a file specified. 
+ * 
+ * @param pointer Pointer to the current directory.
+ * @param file File pwd will be written.
+ * @return void
+ */
 void pwdFunctionForTxt( nodeStruct *pointer, FILE *file){
     if(pointer != NULL){
         pwdFunctionForTxt(pointer -> parent, file);
@@ -104,15 +115,24 @@ void pwdFunctionForTxt( nodeStruct *pointer, FILE *file){
     }
 }
 
+/**
+ * @brief This function prints pwd in console log. 
+ * 
+ * @param pointer Pointer to the current directory.
+ * @param counter Int used to know what was the first dir, always use it with 0.
+ * @return void
+ */
 void pwdFunction( nodeStruct *currDir, int counter){
 
     nodeStruct *pointer = currDir;
 
     if(pointer != NULL){
         counter++;
+        // Recursive call
         pwdFunction(pointer->parent, counter);
 
         if(strcmp(pointer->name, "/") == 0){
+            // Case it's root directory
             printf("\x1b[35m/\x1b[0m");
         } else{
             printf("\x1b[37m%s\x1b[0m", pointer->name);
@@ -123,23 +143,48 @@ void pwdFunction( nodeStruct *currDir, int counter){
     }
 }
 
+/**
+ * @brief This function prints the tree for wrts. 
+ * 
+ * @param pointer Pointer to the first directory.
+ * @param file File where the tree will be printed.
+ * @param longestname Int representing the longest name of directory.
+ * @return void
+ */
 void printSysFile( nodeStruct *pointer, FILE *file, int longestname ){
     if(pointer != NULL){
+        // Prints dir name
         fprintf(file, "%s", pointer->name);
+
+        // Keeps format
         int pointerlen = strlen(pointer->name);
         while(pointerlen < longestname + 4){
             fprintf(file, " ");
             pointerlen++;
         }
-        fprintf(file, "%s     %c    ", pointer->time, pointer->type);
+
+        // Prints date, time and file type
+        fprintf(file, "%s\t%c\t", pointer->time, pointer->type);
+        // Prints path
         pwdFunctionForTxt(pointer, file);
         fprintf(file, "\n");
+        // Recursives calls
         printSysFile(pointer->child, file, longestname);
         printSysFile(pointer->sibling, file, longestname);
     }
     
 }
 
+/**
+ * @brief This looks for a file inside a directory/file. 
+ * It CHANGES the pointer given to target directory/file's position, 
+ * so it looks for and go to the target directory/file. 
+ * 
+ * @param pointer Pointer to the current directory/file.
+ * @param dirName Name of directory/file.
+ * @param fileType If 'D', directory and if 'F', file.
+ * @return True if it finds the directory/file and changes the position of pointer, False otherwise.
+ */
 bool searchFile( nodeStruct **pointer, char * dirName, char fileType){
     
     bool dirmatch = false;
@@ -148,6 +193,7 @@ bool searchFile( nodeStruct **pointer, char * dirName, char fileType){
         if(strcmp(dirName, (*pointer) -> name) == 0 && (*pointer) -> type == fileType ){
             dirmatch = true;
         } else {
+            // Changing pointer to sibling
             *pointer = (*pointer) -> sibling;
         }
     }
@@ -155,6 +201,16 @@ bool searchFile( nodeStruct **pointer, char * dirName, char fileType){
     return dirmatch;
 }
 
+/**
+ * @brief This looks for a file inside a directory/file. 
+ * It does NOT changes the pointer given to target directory/file's position, 
+ * so it looks for and go to the target directory/file. 
+ * 
+ * @param pointer Pointer to the current directory/file.
+ * @param dirName Name of directory/file.
+ * @param fileType If 'D', directory and if 'F', file.
+ * @return True if it finds the directory/file, False otherwise.
+ */
 bool findFile( nodeStruct *pointer, char * dirName, char fileType){
     
     bool dirmatch = false;
@@ -163,6 +219,7 @@ bool findFile( nodeStruct *pointer, char * dirName, char fileType){
         if(strcmp(dirName, pointer -> name) == 0 && pointer -> type == fileType ){
             dirmatch = true;
         } else {
+            // Not changing by reference pointer to sibling
             pointer = pointer -> sibling;
         }
     }
@@ -170,7 +227,17 @@ bool findFile( nodeStruct *pointer, char * dirName, char fileType){
     return dirmatch;
 }
 
-bool searchFileForDel( nodeStruct **pointer, nodeStruct **backpointer, char * dirName, char fileType){
+/**
+ * @brief This looks for a file inside a directory/file in order to delete it. 
+ * 
+ * @param pointer Pointer to the current directory/file.
+ * @param prevpointer Initialized with NULL, but it will always contain the previous pointer of 
+ *                    the target directory.
+ * @param dirName Name of directory/file.
+ * @param fileType If 'D', directory and if 'F', file.
+ * @return True if it finds the directory/file and deletes it, false otherwise.
+ */
+bool searchFileForDel( nodeStruct **pointer, nodeStruct **prevpointer, char * dirName, char fileType){
     
     bool dirmatch = false;
 
@@ -178,7 +245,7 @@ bool searchFileForDel( nodeStruct **pointer, nodeStruct **backpointer, char * di
         if(strcmp(dirName, (*pointer) -> name) == 0 && (*pointer) -> type == fileType ){
             dirmatch = true;
         } else {
-            *backpointer = *pointer;
+            *prevpointer = *pointer;
             *pointer = (*pointer) -> sibling;
         }
     }
@@ -186,6 +253,12 @@ bool searchFileForDel( nodeStruct **pointer, nodeStruct **backpointer, char * di
     return dirmatch;
 }
 
+/**
+ * @brief Prints all the commands that user can use. 
+ * 
+ * @param commands Array of 2-dimensions that contains command and specification of the command.
+ * @return void.
+ */
 void helpFunction(cmdStruct * commands){
     printf("\nYou can use the following list of commands: \n\n");
 
@@ -194,6 +267,12 @@ void helpFunction(cmdStruct * commands){
     }
 }
 
+/**
+ * @brief Prints all the files that a directory given has. 
+ * 
+ * @param pointer Pointer to the first child file of the directory.
+ * @return void.
+ */
 void printFiles(nodeStruct *pointer){
     int i = 0; 
     while(pointer != NULL){
@@ -202,12 +281,19 @@ void printFiles(nodeStruct *pointer){
         } else {
             printf("\n%s\t", pointer->name);
         }
+        // Goes to the sibling, remember it starts from the first child
         pointer = pointer->sibling;
         i++;
     }
     printf("\n");
 }
 
+/**
+ * @brief Prints all the files that a directory given has and includes the dates. 
+ * 
+ * @param pointer Pointer to the first child file of the directory.
+ * @return void.
+ */
 void printFileswithDate(nodeStruct *pointer, int longestFileName){
     int i = 0;
     while(pointer != NULL){
@@ -228,7 +314,13 @@ void printFileswithDate(nodeStruct *pointer, int longestFileName){
     printf("\n");
 }
 
-
+/**
+ * @brief Prints all the files of the system files created. 
+ * 
+ * @param head Pointer to the root directory.
+ * @param longestname Length of the longest file name.
+ * @return void.
+ */
 void wrtsFunction(nodeStruct *head, int longestname){
 
     nodeStruct *pointerhead = head;
@@ -244,6 +336,14 @@ void wrtsFunction(nodeStruct *head, int longestname){
     }
 }
 
+/**
+ * @brief Creates a new file in the specified directory
+ * 
+ * @param dir Pointer to the current directory
+ * @param nameFile File's name.
+ * @param type If 'D', directory and if 'F', file.
+ * @return void.
+ */
 void createFile(nodeStruct *dir, char * nameFile, char type){
 
     nodeStruct *newfile = (nodeStruct *)malloc(sizeof(nodeStruct));
@@ -261,7 +361,7 @@ void createFile(nodeStruct *dir, char * nameFile, char type){
 
     strcpy(newfile->time, dateTime);
 
-    //free memory
+    // free memory
     free(dateTime);
     dateTime = NULL;
     
@@ -287,9 +387,17 @@ void createFile(nodeStruct *dir, char * nameFile, char type){
 
         pointerIndex->sibling = newfile;
     }
-
 }
 
+/**
+ * @brief Creates a new file in the specified directory
+ * 
+ * @param dir Copy to current directory
+ * @param pathpointer Current directory
+ * @param file Name of the file.
+ * @param type If 'D', directory and if 'F', file.
+ * @return void.
+ */
 void deleteFile(nodeStruct *dir, nodeStruct *pathpointer, char *file, char type){
     
     nodeStruct *pointer = dir->child;
@@ -329,61 +437,75 @@ void deleteFile(nodeStruct *dir, nodeStruct *pathpointer, char *file, char type)
                     printf("\x1b[31mError:\x1b[37m Directory not empty!\n");
                 }
             } else{
-
                 printf("\x1b[31mError:\x1b[37m You can't delete current directory!\n");
-
             }
-
         } else {
             printf("\x1b[31mError:\x1b[37m Target directory does not exist!\n");
         }
-
     }
 
 }
 
+/**
+ * @brief This function maps a condition to an int.
+ * 
+ * @param command Command given by the user.
+ * @param arguments Arguments guven by the user. 
+ * @return int mapped to the condition.
+ */
 int map_to_int(char * command, char * arguments){
     
+    // exit command
     if( strcmp(command, "exit") == 0 && strcmp(arguments, "") == 0 ){
 
         return 1;
-
+    
+    // pwd command
     } else if( strcmp(command, "pwd") == 0 && strcmp(arguments , "") == 0 ){
 
         return 2;
-
+    
+    // touch command
     } else if( strcmp(command, "touch") == 0 && strcmp(arguments, "") != 0 ){
 
         return 3;
-
+    
+    // rm command
     } else if( strcmp(command, "rm") == 0 && strcmp(arguments, "") != 0 ){
 
         return 4;
-
+    
+    // ls command
     } else if( strcmp(command,"ls") == 0 ){
 
         return 5;
 
+    // mkdir command
     } else if( strcmp(command, "mkdir") == 0 ){
         
         return 6;
-
+    
+    // rmdir command
     } else if( strcmp(command, "rmdir") == 0 && strcmp(arguments, "") != 0 ){
 
         return 7;
-
+    
+    // cd command
     } else if( strcmp(command, "cd") == 0 && strcmp(arguments, "") != 0 ){
 
         return 8;
-
+    
+    // help command
     } else if( strcmp(command, "help") == 0 && strcmp(arguments, "") == 0 ){
 
         return 9;
-
+    
+    // wrts command
     } else if( strcmp(command, "wrts") == 0 && strcmp(arguments, "") == 0 ){
 
         return 10;
-
+    
+    // otherwise
     } else {
         
         return 11;
@@ -445,7 +567,7 @@ bool splitPath(char *path, char **dirs, char **file){
         return false;  
     }
 
-    //
+    // Copy the rest to dirs
     i = 0;
     while(i != size - fileNameSize + 1){
         (*dirs)[i] = path[i];
@@ -456,6 +578,14 @@ bool splitPath(char *path, char **dirs, char **file){
     return true;
 }
 
+/**
+ * @brief This function parse the user input to divide entry in two parts, command and argument
+ * 
+ * @param input User input.
+ * @param command Variable to save command part.
+ * @param arguments Variable to save arguments part.
+ * @return void
+ */
 void inputParser(char *input, char **command, char **arguments){
 
     //Determine memory space for command
@@ -472,6 +602,7 @@ void inputParser(char *input, char **command, char **arguments){
         return;  
     }
 
+    // Copy the command part
     for (int j = 0; j < i; j++) {
         (*command)[j] = input[j];
     }
@@ -505,7 +636,7 @@ void inputParser(char *input, char **command, char **arguments){
             return;  
         }
 
-        // Copy string
+        // Copy the arguments part
         for (int j = 0; j < q; j++) {
             (*arguments)[j] = input[j + i + 1];
         }
@@ -515,6 +646,14 @@ void inputParser(char *input, char **command, char **arguments){
 
 }
 
+/**
+ * @brief This function verify that the path given is a valid path
+ * 
+ * @param actualpointer Pointer to current directory.
+ * @param head Pointer to the root directory.
+ * @param arguments String with path to parse.
+ * @return True if path is valid, False otherwise.
+ */
 bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
 
     int j = 0;
@@ -535,7 +674,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
             printf("\x1b[31mMemory Error\x1b[37m\n");
             return false;
         }
-        // Restart the variable j to copy the directory
+        // Restart the variable j to copy the path
         j = q;
         int i = 0;
         while( j < q + cont ){
@@ -545,10 +684,12 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
         }
         dir[cont] = '\0';
 
+        // If the first char is "/", then
         if(dircont == 1 && strcmp(dir, "") == 0){
             *actualpointer = *head;
         }
 
+        // Different cases to determine what to do with each path 
         if(strcmp(dir, "") == 0 && dircont != 1){
             printf("\x1b[31mError:\x1b[37m Invalid route.\n");
             free(dir);
@@ -572,6 +713,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
             }
         }
 
+        // free memory
         free(dir);
         if( arguments[j] == '\0' ){
             q = j - 1;
@@ -584,9 +726,17 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
     return true;
 }
 
+/**
+ * @brief This function gets the length of the longest file name from a given directory
+ * 
+ * @param pointer Pointer to first child of current directory.
+ * @return Length of the longest file name from the directory.
+ */
 int getLongestFileName(nodeStruct *pointer){
     int longestFileName = 0;
     while(pointer != NULL){
+
+        // If the length of this file name is longer than longest, then it's the longest 
         if((int)strlen(pointer->name) > longestFileName){
             longestFileName = strlen(pointer->name);
         }
@@ -596,6 +746,14 @@ int getLongestFileName(nodeStruct *pointer){
     return longestFileName;
 }
 
+/**
+ * @brief This function prints the files from a directory given if the path is valid
+ * 
+ * @param arguments String with a path.
+ * @param currDir Pointer to the current directory.
+ * @param head Pointer to root directory.
+ * @return void
+ */
 void lsFunction(char *arguments, nodeStruct *currDir, nodeStruct *head){
     if(arguments[0] == '-' && arguments[1] == 'l'){
         char path[strlen(arguments) - 1];
@@ -629,21 +787,30 @@ void lsFunction(char *arguments, nodeStruct *currDir, nodeStruct *head){
     }
 }
 
+/**
+ * @brief This function creates files in a path only if path is valid 
+ * 
+ * @param path String with a path.
+ * @param currDir Pointer to the current directory.
+ * @param root Pointer to root directory.
+ * @return void
+ */
 void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
-    char *dirs;
+    char *dirs; 
     char *file;
+    // Divide the path in directory paths and file name
     if(splitPath(path, &dirs, &file)){
         
         if(strcmp(file, "") != 0){
 
             nodeStruct *pointerpath = currDir;
             nodeStruct *pointerhead = root;
-
+            // Verifies that path is valid
             if(pathParser(&pointerpath, &pointerhead, dirs)){
 
                 nodeStruct *cpy_pointerpath = pointerpath;
-
+                // Verifies if there is no file called the same
                 if(!findFile(cpy_pointerpath->child, file, 'F')){
                     createFile(pointerpath, file, 'F');
                 } else {
@@ -654,17 +821,25 @@ void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
         } else {
             printf("\x1b[31mError:\x1b[37m No name of file provided!\n");
         }
-
         free(dirs);
         free(file);
     }
 
 }
 
+/**
+ * @brief This function creates directory in a path only if path is valid 
+ * 
+ * @param path String with a path.
+ * @param currDir Pointer to the current directory.
+ * @param root Pointer to root directory.
+ * @return void
+ */
 void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
     char *dirs;
     char *file;
+    // Divide the path in directory paths and file name
     if(splitPath(path, &dirs, &file)){
 
         if(strcmp(file, "") != 0){
@@ -672,9 +847,11 @@ void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
             nodeStruct *pointerpath = currDir;
             nodeStruct *pointerhead = root;
 
+            // Verifies that path is valid
             if(pathParser(&pointerpath, &pointerhead, dirs)){
 
                 nodeStruct *cpy_pointerpath = pointerpath;
+                // Verifies if there is no directory called the same
                 if(!findFile(cpy_pointerpath->child, file, 'D')){
                     createFile(pointerpath, file, 'D');
                 } else {
@@ -692,6 +869,14 @@ void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
 }
 
+/**
+ * @brief This function sends the user to a path given.
+ * 
+ * @param path String with a path.
+ * @param currDir Pointer to the current directory.
+ * @param root Pointer to root directory.
+ * @return void
+ */
 void cdFunction(char *path, nodeStruct **currDir, nodeStruct *root){
 
     nodeStruct *pointerpath = *currDir;
@@ -702,14 +887,23 @@ void cdFunction(char *path, nodeStruct **currDir, nodeStruct *root){
     }
 }
 
+/**
+ * @brief This function deletes a file in a directory given only if path is valid.
+ * 
+ * @param path String with a path.
+ * @param currDir Pointer to the current directory.
+ * @param root Pointer to root directory.
+ * @return void
+ */
 void rmFunction(char *path, nodeStruct *currDir, nodeStruct *head){
     
     char *dirs;
     char *file;
+    // Divide the path in directory paths and file name
     if(splitPath(path, &dirs, &file)){
         nodeStruct *cpy_pathpointer = currDir;
         nodeStruct *pointerhead = head;
-
+        // Verifies that path is valid
         if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
             deleteFile(cpy_pathpointer, currDir, file, 'F');
         }
@@ -719,15 +913,24 @@ void rmFunction(char *path, nodeStruct *currDir, nodeStruct *head){
 
 }
 
+/**
+ * @brief This function deletes a directory in a directory given only if path is valid.
+ * 
+ * @param path String with a path.
+ * @param currDir Pointer to the current directory.
+ * @param root Pointer to root directory.
+ * @return void
+ */
 void rmdirFunction(char *path, nodeStruct *currDir, nodeStruct *head){
 
     char *dirs;
     char *file;
+    // Divide the path in directory paths and file name
     if(splitPath(path, &dirs, &file)){
 
         nodeStruct *cpy_pathpointer = currDir;
         nodeStruct *pointerhead = head;
-
+        // Verifies that path is valid
         if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
             // Verify if current directory is target directory
             deleteFile(cpy_pathpointer, currDir, file, 'D');
@@ -737,6 +940,14 @@ void rmdirFunction(char *path, nodeStruct *currDir, nodeStruct *head){
     }
 }
 
+/**
+ * @brief This function generates the system file tree from a file given.
+ * 
+ * @param fileName Name of the file.
+ * @param head Pointer to the roott directory.
+ * @param pathpointer Pointer to current directory.
+ * @return void
+ */
 bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer){
 
     FILE *txt_file;
@@ -898,7 +1109,7 @@ int main(int argc, char *argv[]){
         char *arguments;
         inputParser(entry, &command, &arguments);
 
-	    free(entry);
+        free(entry);
         
         // Used to remove empty spaces of the argument
         strip(arguments);
