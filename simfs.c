@@ -450,7 +450,6 @@ void inputParser(char *input, char **command, char **arguments){
         return;  
     }
 
-    // Copiar los caracteres
     for (int j = 0; j < i; j++) {
         (*command)[j] = input[j];
     }
@@ -495,12 +494,12 @@ void inputParser(char *input, char **command, char **arguments){
 }
 
 bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
-    // dir contendrá cada directorio
+
     int j = 0;
     int q = 0;
     int cont;
     int dircont = 1;
-    // Este bloque pretende contar para que malloc sepa cuánto espacio de memoria preparar para el directorio
+    
     while( arguments[q] != '\0' ){
         j = q;
         cont = 0;
@@ -524,9 +523,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
         }
         dir[cont] = '\0';
 
-        // Aqui deberíamos chequear si el directorio existe
-
-        // Decide si la dirección es absoluta
+        
         if(dircont == 1 && strcmp(dir, "") == 0){
             *actualpointer = *head;
         }
@@ -623,7 +620,15 @@ void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
         nodeStruct *pointerhead = root;
 
         if(pathParser(&pointerpath, &pointerhead, dirs)){
-            createFile(pointerpath, file, 'F');
+
+            nodeStruct *cpy_pointerpath = pointerpath;
+
+            if(!searchFile(&cpy_pointerpath->child, file, 'F')){
+                createFile(pointerpath, file, 'F');
+            } else {
+                printf("Error: Already exists a file with that name!\n");
+            }
+
         }
         free(dirs);
         free(file);
@@ -641,7 +646,14 @@ void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
         nodeStruct *pointerhead = root;
 
         if(pathParser(&pointerpath, &pointerhead, dirs)){
-            createFile(pointerpath, file, 'D');
+
+            nodeStruct *cpy_pointerpath = pointerpath;
+            if(!searchFile(&cpy_pointerpath->child, file, 'D')){
+                createFile(pointerpath, file, 'D');
+            } else {
+                printf("Error: Already exists a directory with that name!\n");
+            }
+            
         }
         free(dirs);
         free(file);
