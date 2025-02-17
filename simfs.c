@@ -714,7 +714,7 @@ bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer)
         
         // Get the memory space needed for path
         int q = 0;
-        while(linea[q] != '\t'){
+        while(linea[q] != '\t' && linea[q] != ' '){
             q++;
         }
 
@@ -770,17 +770,18 @@ bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer)
             touchFunction(path, *pathpointer, head);
         }
 
+        free(path);
         line_counter++;
     }   
 
     // Close file
     fclose(txt_file);
-
+    
     return true;
 }
 
 int main(int argc, char *argv[]){
-    
+
     struct nodeStruct head;
     nodeStruct *pathpointer;
 
@@ -914,7 +915,9 @@ int main(int argc, char *argv[]){
                 printf("Not valid command, write help to see the list of commands availables\n");
                 break;
         }
-        free(arguments);
+        if(strcmp(arguments, "") != 0){
+            free(arguments);
+        }
         free(command);
 
     }
