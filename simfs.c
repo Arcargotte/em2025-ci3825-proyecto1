@@ -357,13 +357,6 @@ int map_to_int(char * command, char * arguments){
     }
 }
 
-/*
-    Cuestiones a tener en cuenta para la función splitPath
-    1) /home                  |  file = home    |   dir = "/"
-    2) ./home/Juegos          |  file = Juegos  |   dir = ./home/
-    3) home                   |  file = home    |   dir = ""
-*/
-
 /**
  * @brief This function splits a path in two different parts: First one is the path to the target directory 
  *        and second one the name of the target file.
