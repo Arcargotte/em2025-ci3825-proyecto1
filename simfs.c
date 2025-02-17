@@ -235,7 +235,7 @@ void wrtsFunction(nodeStruct *head, int longestname){
 
     FILE *file = fopen("sysfile.txt", "w");
     if (file == NULL) {
-        printf("Error creating file!\n");
+        printf("\x1b[31mError:\x1b[37m creating file!\n");
         
     } else {
         printSysFile(pointerhead, file, longestname);
@@ -326,16 +326,16 @@ void deleteFile(nodeStruct *dir, nodeStruct *pathpointer, char *file, char type)
                     free(pointer);
 
                 } else{
-                    printf("Error: Directory not empty!\n");
+                    printf("\x1b[31mError:\x1b[37m Directory not empty!\n");
                 }
             } else{
 
-                printf("Error: You can't delete current directory!\n");
+                printf("\x1b[31mError:\x1b[37m You can't delete current directory!\n");
 
             }
 
         } else {
-            printf("Error: Target directory does not exist!\n");
+            printf("\x1b[31mError:\x1b[37m Target directory does not exist!\n");
         }
 
     }
@@ -405,7 +405,7 @@ bool splitPath(char *path, char **dirs, char **file){
     int size = strlen(path);  
 
     if(size == 0){
-        printf("Error: Invalid Path!\n");
+        printf("\x1b[31mError:\x1b[37m Invalid Path!\n");
         return false;
     }
 
@@ -423,7 +423,7 @@ bool splitPath(char *path, char **dirs, char **file){
     
     *file = (char *)malloc(fileNameSize + 1);  
     if (*file == NULL) {  
-        printf("Memory Error\n");
+        printf("\x1b[31mMemory Error\x1b[37m\n");
         return false;  
     }
 
@@ -436,10 +436,11 @@ bool splitPath(char *path, char **dirs, char **file){
         j++;
     }
     (*file)[i] = '\0';
+    strip(*file);
 
     *dirs = (char *)malloc(size - fileNameSize + 2);  
     if (*dirs == NULL) {  
-        printf("Memory Error\n");
+        printf("\x1b[31mMemory Error\x1b[37m\n");
         free(*file);
         return false;  
     }
@@ -467,7 +468,7 @@ void inputParser(char *input, char **command, char **arguments){
     // Assign dynamic memory
     *command = (char *)malloc(i + 1);  
     if (*command == NULL) {  
-        printf("Memory Error\n");
+        printf("\x1b[31mMemory Error\x1b[37m\n");
         return;  
     }
 
@@ -500,7 +501,7 @@ void inputParser(char *input, char **command, char **arguments){
         
         if (*arguments == NULL) {  
             free(*command);
-            printf("Memory Error\n");
+            printf("\x1b[31mMemory Error\x1b[37m\n");
             return;  
         }
 
@@ -531,7 +532,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
         char *dir = (char *)malloc(cont + 1);
         // If memory allocation fails
         if (dir == NULL) {
-            printf("Error: Assign memory failed.\n");
+            printf("\x1b[31mMemory Error\x1b[37m\n");
             return false;
         }
         // Restart the variable j to copy the directory
@@ -544,22 +545,19 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
         }
         dir[cont] = '\0';
 
-        
         if(dircont == 1 && strcmp(dir, "") == 0){
             *actualpointer = *head;
         }
 
-        if( strcmp(dir, ".") == 0 ){
-            printf("Dir found: %s\n", (*actualpointer) -> name);
-        } else if(strcmp(dir, "") == 0 && dircont != 1){
-            printf("Error: Invalid route.\n");
+        if(strcmp(dir, "") == 0 && dircont != 1){
+            printf("\x1b[31mError:\x1b[37m Invalid route.\n");
             free(dir);
             return false;
         } else if(strcmp(dir, "..") == 0){
             if (actualpointer && *actualpointer && (*actualpointer)->parent) {
                 *actualpointer = (*actualpointer)->parent;
             } else {
-                printf("Error: Invalid route.\n");
+                printf("\x1b[31mError:\x1b[37m Invalid route.\n");
                 free(dir);
                 return false;
             }
@@ -568,7 +566,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
             if(searchFile(&pointer, dir, 'D')){
                 *actualpointer = pointer;
             } else {
-                printf("Error: %s not found in %s.\n", dir, (*actualpointer) -> name);
+                printf("\x1b[31mError:\x1b[37m %s not found in %s!\n", dir, (*actualpointer) -> name);
                 free(dir);
                 return false;
             }
@@ -637,20 +635,26 @@ void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
     char *file;
     if(splitPath(path, &dirs, &file)){
         
-        nodeStruct *pointerpath = currDir;
-        nodeStruct *pointerhead = root;
+        if(strcmp(file, "") != 0){
 
-        if(pathParser(&pointerpath, &pointerhead, dirs)){
+            nodeStruct *pointerpath = currDir;
+            nodeStruct *pointerhead = root;
 
-            nodeStruct *cpy_pointerpath = pointerpath;
+            if(pathParser(&pointerpath, &pointerhead, dirs)){
 
-            if(!findFile(cpy_pointerpath->child, file, 'F')){
-                createFile(pointerpath, file, 'F');
-            } else {
-                printf("Error: Already exists a file with that name!\n");
+                nodeStruct *cpy_pointerpath = pointerpath;
+
+                if(!findFile(cpy_pointerpath->child, file, 'F')){
+                    createFile(pointerpath, file, 'F');
+                } else {
+                    printf("\x1b[31mError:\x1b[37m Already exists a file with that name!\n");
+                }
+
             }
-
+        } else {
+            printf("\x1b[31mError:\x1b[37m No name of file provided!\n");
         }
+
         free(dirs);
         free(file);
     }
@@ -663,19 +667,25 @@ void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
     char *file;
     if(splitPath(path, &dirs, &file)){
 
-        nodeStruct *pointerpath = currDir;
-        nodeStruct *pointerhead = root;
+        if(strcmp(file, "") != 0){
 
-        if(pathParser(&pointerpath, &pointerhead, dirs)){
+            nodeStruct *pointerpath = currDir;
+            nodeStruct *pointerhead = root;
 
-            nodeStruct *cpy_pointerpath = pointerpath;
-            if(!findFile(cpy_pointerpath->child, file, 'D')){
-                createFile(pointerpath, file, 'D');
-            } else {
-                printf("Error: Already exists a directory with that name!\n");
+            if(pathParser(&pointerpath, &pointerhead, dirs)){
+
+                nodeStruct *cpy_pointerpath = pointerpath;
+                if(!findFile(cpy_pointerpath->child, file, 'D')){
+                    createFile(pointerpath, file, 'D');
+                } else {
+                    printf("\x1b[31mError:\x1b[37m Already exists a directory with that name!\n");
+                }
             }
 
+        } else {
+            printf("\x1b[31mError:\x1b[37m No name of directory provided!\n");
         }
+
         free(dirs);
         free(file);
     }
@@ -735,7 +745,7 @@ bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer)
 
     // In case the file couldn't open
     if (txt_file == NULL) {
-        printf("Error: Couldn't open simfs.txt!\n");
+        printf("\x1b[31mError:\x1b[37m Couldn't open text file!\n");
         return false;
     }
 
@@ -771,13 +781,13 @@ bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer)
         path[j] = '\0';
 
         if(fileType != 'D' && fileType != 'F'){
-            printf("Error in line %d: Not valid file type!\n", line_counter);
+            printf("\x1b[31mError: in line \x1b[37m%d\x1b[31m: \x1b[37mNot valid file type!\n", line_counter);
             return 1;
         }  
 
         // Verify that first directory is correct
         if(strcmp(path, "/") != 0 && line_counter == 1){
-            printf("Error in line 1: Not valid first directory!\n");
+            printf("\x1b[31mError: in line \x1b[37m1\x1b[31m: \x1b[37m Not valid first directory!\n");
             return false;
         }
 
@@ -963,7 +973,7 @@ int main(int argc, char *argv[]){
 
             //otherwise
             case 11:
-                printf("Not valid command, write help to see the list of commands availables\n");
+                printf("\x1b[31mError:\x1b[37m Not valid command, write help to see the list of commands available!\n");
                 break;
         }
         free(arguments);
