@@ -618,6 +618,24 @@ void rmFunction(char *path, nodeStruct *currDir, nodeStruct *head){
 
 }
 
+void rmdirFunction(char *path, nodeStruct *currDir, nodeStruct *head){
+
+    char *dirs;
+    char *file;
+    if(splitPath(path, &dirs, &file)){
+
+        nodeStruct *cpy_pathpointer = currDir;
+        nodeStruct *pointerhead = head;
+
+        if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
+            // Verify if current directory is target directory
+            deleteFile(cpy_pathpointer, currDir, file, 'D');
+        }
+        free(dirs);
+        free(file);
+    }
+}
+
 bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer){
 
     FILE *txt_file;
@@ -831,21 +849,8 @@ int main(int argc, char *argv[]){
             }
 
             //rmdir
-            case 7: { 
-                char *dirs;
-                char *file;
-                if(splitPath(arguments, &dirs, &file)){
-
-                    nodeStruct *cpy_pathpointer = pathpointer;
-                    nodeStruct *pointerhead = &head;
-
-                    if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
-                        // Verify if current directory is target directory
-                        deleteFile(cpy_pathpointer, pathpointer, file, 'D');
-                    }
-                    free(dirs);
-                    free(file);
-                }
+            case 7: {
+                rmdirFunction(arguments, pathpointer, &head);
                 break;
             }
 
