@@ -173,7 +173,7 @@ void helpFunction(cmdStruct * commands){
 }
 
 void lsFunction(nodeStruct *pointer){
-            
+    
     while(pointer != NULL){
         printf("%s\t", pointer->name);
         pointer = pointer->sibling;
@@ -185,12 +185,12 @@ void lsFunction(nodeStruct *pointer){
 void wrtsFunction(nodeStruct *pointerhead, int longestname){
     FILE *file = fopen("sysfile.txt", "w");
     if (file == NULL) {
-        printf("Error al crear el archivo.\n");
+        printf("Error creating file!\n");
         
     } else {
         printSysFile(pointerhead, file, longestname);
         fclose(file);
-        printf("Archivo creado y escrito con éxito.\n");
+        printf("File created succesfully!\n");
     }
 }
 
@@ -677,9 +677,9 @@ bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer)
         }
 
         // Calls the appropiate function for each file type
-        if(fileType == 'D'){
+        if(fileType == 'D' && line_counter != 1){
             mkdirFunction(path, *pathpointer, head);
-        } else {
+        } else if(fileType == 'F' && line_counter != 1) {
             touchFunction(path, *pathpointer, head);
         }
 
