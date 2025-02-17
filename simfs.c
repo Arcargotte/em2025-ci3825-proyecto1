@@ -172,15 +172,41 @@ void helpFunction(cmdStruct * commands){
     printf("---------------------------------------------\n");
 }
 
-void lsFunction(nodeStruct *pointer){
-    
+void printFiles(nodeStruct *pointer){
+    int i = 0; 
     while(pointer != NULL){
-        printf("%s\t", pointer->name);
+        if(i == 0){
+            printf("%s\t", pointer->name);
+        } else {
+            printf("\n%s\t", pointer->name);
+        }
         pointer = pointer->sibling;
+        i++;
     }
-
     printf("\n");
 }
+
+void printFileswithDate(nodeStruct *pointer, int longestFileName){
+    int i = 0;
+    while(pointer != NULL){
+        if(i != 0){
+            printf("\n");
+        }
+        printf("%s", pointer->name);
+        int j = strlen(pointer->name);
+        // Prints an space until it reaches the longest name size so it shows as a list
+        while(j < longestFileName){
+            printf(" ");
+            j++;
+        }
+        printf("\t%s\t%c", pointer->time, pointer->type);
+        pointer = pointer->sibling;
+        i++;
+    }
+    printf("\n");
+}
+
+
 
 void wrtsFunction(nodeStruct *pointerhead, int longestname){
     FILE *file = fopen("sysfile.txt", "w");
@@ -555,6 +581,51 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
     return true;
 }
 
+int getLongestFileName(nodeStruct *pointer){
+    int longestFileName = 0;
+    while(pointer != NULL){
+        if((int)strlen(pointer->name) > longestFileName){
+            longestFileName = strlen(pointer->name);
+        }
+        pointer = pointer->sibling;
+        
+    }
+    return longestFileName;
+}
+
+void lsFunction(char *arguments, nodeStruct *currDir, nodeStruct *head){
+    if(arguments[0] == '-' && arguments[1] == 'l'){
+        char path[strlen(arguments) - 2];
+        int i = 0;
+        int j = 2;
+        while(i < (int)strlen(arguments) - 2){
+            path[i] = arguments[j];
+            i++;
+            j++;
+        }
+        path[i] = '\0';
+
+        strip(path);
+
+        nodeStruct *pointerpath = currDir;
+        nodeStruct *pointerhead = head;
+        
+        if(pathParser(&pointerpath, &pointerhead, path)){
+            int longestFileName= getLongestFileName(pointerpath->child);
+
+            printFileswithDate(pointerpath->child, longestFileName);
+        }
+
+    } else{
+        nodeStruct *pointerpath = currDir;
+        nodeStruct *pointerhead = head;
+
+        if(pathParser(&pointerpath, &pointerhead, arguments)){
+            printFiles(pointerpath->child);
+        }
+    }
+}
+
 void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
     char *dirs;
@@ -833,12 +904,7 @@ int main(int argc, char *argv[]){
 
             //ls
             case 5: {
-                nodeStruct *pointerpath = pathpointer;
-                nodeStruct *pointerhead = &head;
-
-                if(pathParser(&pointerpath, &pointerhead, arguments)){
-                    lsFunction(pointerpath->child);
-                }
+                lsFunction(arguments, pathpointer, &head);
                 break;
             }
 
