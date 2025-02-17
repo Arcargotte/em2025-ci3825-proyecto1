@@ -146,6 +146,21 @@ bool searchFile( nodeStruct **pointer, char * dirName, char fileType){
     return dirmatch;
 }
 
+bool findFile( nodeStruct *pointer, char * dirName, char fileType){
+    
+    bool dirmatch = false;
+
+    while( pointer != NULL && !dirmatch ){
+        if(strcmp(dirName, pointer -> name) == 0 && pointer -> type == fileType ){
+            dirmatch = true;
+        } else {
+            pointer = pointer -> sibling;
+        }
+    }
+
+    return dirmatch;
+}
+
 bool searchFileForDel( nodeStruct **pointer, nodeStruct **backpointer, char * dirName, char fileType){
     
     bool dirmatch = false;
@@ -205,7 +220,6 @@ void printFileswithDate(nodeStruct *pointer, int longestFileName){
     }
     printf("\n");
 }
-
 
 
 void wrtsFunction(nodeStruct *head, int longestname){
@@ -623,7 +637,7 @@ void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
             nodeStruct *cpy_pointerpath = pointerpath;
 
-            if(!searchFile(&cpy_pointerpath->child, file, 'F')){
+            if(!findFile(cpy_pointerpath->child, file, 'F')){
                 createFile(pointerpath, file, 'F');
             } else {
                 printf("Error: Already exists a file with that name!\n");
@@ -648,12 +662,12 @@ void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
         if(pathParser(&pointerpath, &pointerhead, dirs)){
 
             nodeStruct *cpy_pointerpath = pointerpath;
-            if(!searchFile(&cpy_pointerpath->child, file, 'D')){
+            if(!findFile(cpy_pointerpath->child, file, 'D')){
                 createFile(pointerpath, file, 'D');
             } else {
                 printf("Error: Already exists a directory with that name!\n");
             }
-            
+
         }
         free(dirs);
         free(file);
@@ -852,7 +866,8 @@ int main(int argc, char *argv[]){
         size_t n = 0;
 
         // Get new entry
-        printf("%s", "> ");
+        pwdFunction(pathpointer);
+        printf("%s", " > ");
         getline(&entry, &n, stdin);
 
         // Put the terminate char to the entry
