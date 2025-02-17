@@ -208,7 +208,10 @@ void printFileswithDate(nodeStruct *pointer, int longestFileName){
 
 
 
-void wrtsFunction(nodeStruct *pointerhead, int longestname){
+void wrtsFunction(nodeStruct *head, int longestname){
+
+    nodeStruct *pointerhead = head;
+
     FILE *file = fopen("sysfile.txt", "w");
     if (file == NULL) {
         printf("Error creating file!\n");
@@ -491,22 +494,6 @@ void inputParser(char *input, char **command, char **arguments){
 
 }
 
-/* Cuestiones a tener en cuenta:
-
-    Manejar con variable variable que sea dir
-    1) ./path//                                         | "//" esto será ""    if dir = ""
-    2) ./<nombre>                                       | con nombre no perteneciente a ./, se busca el directorio
-    3) ./&/home/Juegos                                  | "&" NO VALIDO
-    4) ./home/Juegos de mi primo/                       | VALIDO
-    5) ./home/../home/../home/../home/../home/../home   | VALIDO
-    6) ../                                              | VALIDO 
-    7) home                                             | Mientras se guardar en el dir, es decir, dir = home y se verifica en la carpeta
-    8) home     crack  amigo                            | Tendría dir = "home     crack  amigo" y buscaría esa carpeta
-    9) 
-
-    "./homx/Juegos/Steam"
-*/ 
-
 bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
     // dir contendrá cada directorio
     int j = 0;
@@ -595,7 +582,7 @@ int getLongestFileName(nodeStruct *pointer){
 
 void lsFunction(char *arguments, nodeStruct *currDir, nodeStruct *head){
     if(arguments[0] == '-' && arguments[1] == 'l'){
-        char path[strlen(arguments) - 2];
+        char path[strlen(arguments) - 1];
         int i = 0;
         int j = 2;
         while(i < (int)strlen(arguments) - 2){
@@ -934,8 +921,7 @@ int main(int argc, char *argv[]){
 
             //wrts
             case 10:{
-                nodeStruct *pointerhead = &head;
-                wrtsFunction(pointerhead, longestname);
+                wrtsFunction(&head, longestname);
                 break;
             }
 
