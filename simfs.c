@@ -601,6 +601,23 @@ void cdFunction(char *path, nodeStruct **currDir, nodeStruct *root){
     }
 }
 
+void rmFunction(char *path, nodeStruct *currDir, nodeStruct *head){
+    
+    char *dirs;
+    char *file;
+    if(splitPath(path, &dirs, &file)){
+        nodeStruct *cpy_pathpointer = currDir;
+        nodeStruct *pointerhead = head;
+
+        if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
+            deleteFile(cpy_pathpointer, currDir, file, 'F');
+        }
+        free(dirs);
+        free(file);
+    }
+
+}
+
 bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer){
 
     FILE *txt_file;
@@ -792,19 +809,7 @@ int main(int argc, char *argv[]){
 
             //rm
             case 4: {
-                char *dirs;
-                char *file;
-                if(splitPath(arguments, &dirs, &file)){
-
-                    nodeStruct *cpy_pathpointer = pathpointer;
-                    nodeStruct *pointerhead = &head;
-
-                    if(pathParser(&cpy_pathpointer, &pointerhead, dirs)){
-                        deleteFile(cpy_pathpointer, pathpointer, file, 'F');
-                    }
-                    free(dirs);
-                    free(file);
-                }
+                rmFunction(arguments, pathpointer, &head);
                 break;
             }
 
