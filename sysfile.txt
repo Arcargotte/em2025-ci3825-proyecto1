@@ -1,0 +1,4 @@
+/                D    /
+hola        22:27-2025/02/16     F    /hola/
+hola.com    22:27-2025/02/16     F    /hola.com/
+holahola    22:27-2025/02/16     D    /holahola/
