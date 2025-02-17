@@ -101,7 +101,7 @@ void cleanSysFile( nodeStruct *pointer, nodeStruct *head){
     if(pointer != NULL){
         cleanSysFile(pointer->child, head);
         cleanSysFile(pointer->sibling, head);
-        if(pointer == head){
+        if(pointer != head){
             free(pointer);
         }
         
