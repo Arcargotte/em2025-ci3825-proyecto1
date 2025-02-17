@@ -104,13 +104,22 @@ void pwdFunctionForTxt( nodeStruct *pointer, FILE *file){
     }
 }
 
-void pwdFunction( nodeStruct *currDir ){
+void pwdFunction( nodeStruct *currDir, int counter){
 
     nodeStruct *pointer = currDir;
 
     if(pointer != NULL){
-        pwdFunction(pointer -> parent);
-        strcmp(pointer -> name, "/") == 0 ? printf("/") :  printf("%s/", pointer -> name);
+        counter++;
+        pwdFunction(pointer->parent, counter);
+
+        if(strcmp(pointer->name, "/") == 0){
+            printf("\x1b[35m/\x1b[0m");
+        } else{
+            printf("\x1b[37m%s\x1b[0m", pointer->name);
+            if(counter != 1){
+                printf("\x1b[35m/\x1b[0m");
+            }
+        }
     }
 }
 
@@ -178,13 +187,11 @@ bool searchFileForDel( nodeStruct **pointer, nodeStruct **backpointer, char * di
 }
 
 void helpFunction(cmdStruct * commands){
-    printf("---------------------------------------------\nYou can use the following list of commands: \n");
+    printf("\nYou can use the following list of commands: \n\n");
 
     for(int i = 0; i < 10; i++){
-        printf("%s: \n     %s\n", commands[i].name, commands[i].description);
+        printf("\x1b[36m%s:\x1b[37m \n     %s\n", commands[i].name, commands[i].description);
     }
-
-    printf("---------------------------------------------\n");
 }
 
 void printFiles(nodeStruct *pointer){
@@ -214,7 +221,7 @@ void printFileswithDate(nodeStruct *pointer, int longestFileName){
             printf(" ");
             j++;
         }
-        printf("\t%s\t%c", pointer->time, pointer->type);
+        printf("\t%s\t\x1b[36m%c\x1b[37m", pointer->time, pointer->type);
         pointer = pointer->sibling;
         i++;
     }
@@ -866,8 +873,9 @@ int main(int argc, char *argv[]){
         size_t n = 0;
 
         // Get new entry
-        pwdFunction(pathpointer);
-        printf("%s", " > ");
+        pwdFunction(pathpointer, 0);
+        printf("\x1b[35m%s\x1b[0m", "> ");
+        printf("\x1b[37m");
         getline(&entry, &n, stdin);
 
         // Put the terminate char to the entry
@@ -879,7 +887,8 @@ int main(int argc, char *argv[]){
         char *command;
         char *arguments;
         inputParser(entry, &command, &arguments);
-	free(entry);
+
+	    free(entry);
         
         // Used to remove empty spaces of the argument
         strip(arguments);
@@ -899,7 +908,7 @@ int main(int argc, char *argv[]){
 
             //pwd
             case 2: {
-                pwdFunction(pathpointer);
+                pwdFunction(pathpointer, 0);
                 printf("\n");
                 break;
             }
