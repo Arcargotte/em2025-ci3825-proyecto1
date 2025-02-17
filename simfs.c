@@ -573,7 +573,7 @@ void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
 }
 
-void mkdirFuction(char *path, nodeStruct *currDir, nodeStruct *root){
+void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
     char *dirs;
     char *file;
@@ -601,20 +601,129 @@ void cdFunction(char *path, nodeStruct **currDir, nodeStruct *root){
     }
 }
 
-int main(void){
+bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer){
 
-    // Case when an entry file is not given
-    struct nodeStruct head = {NULL, NULL, NULL, "/", 'D', ""};
+    FILE *txt_file;
+    // Opens file with read function
+    txt_file = fopen(fileName, "r");
 
-    // Gets DateTime
-    char *dateTime = getDateTime();
-    // Copy info to head
-    strcpy(head.time, dateTime);
-    // Free memory
-    free(dateTime);
-    dateTime = NULL;
+    // In case the file couldn't open
+    if (txt_file == NULL) {
+        printf("Error: Couldn't open simfs.txt!\n");
+        return false;
+    }
 
-    nodeStruct *pathpointer = &head;
+    // Reads the content of the file line by line
+    int line_counter = 1;
+    char linea[999];
+    while (fgets(linea, sizeof(linea), txt_file) != NULL) {
+        
+        // Get the memory space needed for path
+        int q = 0;
+        while(linea[q] != '\t'){
+            q++;
+        }
+
+        // Allocating memory for path
+        char *path = (char *)malloc(q + 1);
+
+        // Saving first occurrence of tab '\t'
+        int first_tab_occurr = q;
+
+        // Iterating through a variable number of tabs until it finds the file type
+        while(linea[first_tab_occurr] == '\t'){
+            first_tab_occurr++;
+        }
+        char fileType = linea[first_tab_occurr];
+
+        // 
+        int j = 0;
+        while(j < q){
+            path[j] = linea[j];
+            j++;
+        }
+        path[j] = '\0';
+
+        if(fileType != 'D' && fileType != 'F'){
+            printf("Error in line %d: Not valid file type!\n", line_counter);
+            return 1;
+        }  
+
+        // Verify that first directory is correct
+        if(strcmp(path, "/") != 0 && line_counter == 1){
+            printf("Error in line 1: Not valid first directory!\n");
+            return false;
+        }
+
+        // If first directory is correct, we initialize head and pathpointer
+        if(strcmp(path, "/") == 0 && line_counter == 1){
+            // Set initial value for head
+            head->parent = NULL;
+            head->child = NULL;
+            head->sibling = NULL;
+            strcpy(head->name, "/");
+            head->type = 'D';
+            
+            // Gets DateTime
+            char *dateTime = getDateTime();
+            // Copy info to head
+            strcpy(head->time, dateTime);
+            // Free memory
+            free(dateTime);
+            dateTime = NULL;
+
+            // Set pathpointer
+            *pathpointer = head;
+        }
+
+        // Calls the appropiate function for each file type
+        if(fileType == 'D'){
+            mkdirFunction(path, *pathpointer, head);
+        } else {
+            touchFunction(path, *pathpointer, head);
+        }
+
+        free(path);
+        line_counter++;
+    }   
+
+    // Close file
+    fclose(txt_file);
+
+    return true;
+}
+
+int main(int argc, char *argv[]){
+
+    struct nodeStruct head;
+    nodeStruct *pathpointer;
+
+    if(argc > 1){
+        // Case when more than one argument is given
+        if(!generateSysFile(argv[1], &head, &pathpointer)){
+            return 1;
+        }
+
+    } else {
+        // Case when only one argument is given
+        // Set initial value for head
+        head.parent = NULL;
+        head.child = NULL;
+        head.sibling = NULL;
+        strcpy(head.name, "/");
+        head.type = 'D';
+
+        // Gets DateTime
+        char *dateTime = getDateTime();
+        // Copy info to head
+        strcpy(head.time, dateTime);
+        // Free memory
+        free(dateTime);
+        dateTime = NULL;
+
+        // Set pathpointer
+        pathpointer = &head;
+    }
     
     
 	// Commands' array
@@ -712,7 +821,7 @@ int main(void){
 
             //mkdir
             case 6: {
-                mkdirFuction(arguments, pathpointer, &head);
+                mkdirFunction(arguments, pathpointer, &head);
                 break;
             }
 
