@@ -101,7 +101,9 @@ void cleanSysFile( nodeStruct *pointer ){
     if(pointer != NULL){
         cleanSysFile(pointer->child);
         cleanSysFile(pointer->sibling);
-        free(pointer);
+        if(strcmp(pointer->name, "/") == 0){
+            free(pointer);
+        }
     }
 }
 
