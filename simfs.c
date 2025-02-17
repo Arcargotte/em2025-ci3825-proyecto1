@@ -97,13 +97,14 @@ bool isCommand(char entry[], char commands[][6]){
     return check;
 }
 
-void cleanSysFile( nodeStruct *pointer ){
+void cleanSysFile( nodeStruct *pointer, nodeStruct *head){
     if(pointer != NULL){
-        cleanSysFile(pointer->child);
-        cleanSysFile(pointer->sibling);
-        if(strcmp(pointer->name, "/") == 0){
+        cleanSysFile(pointer->child, head);
+        cleanSysFile(pointer->sibling, head);
+        if(pointer == head){
             free(pointer);
         }
+        
     }
 }
 
@@ -852,7 +853,7 @@ int main(int argc, char *argv[]){
 
             //exit
             case 1: {
-                cleanSysFile(&head);
+                cleanSysFile(&head, &head);
                 cmdON = false;
                 break;
             }
