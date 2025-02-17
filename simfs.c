@@ -61,10 +61,7 @@ void strip(char *str) {
             str[j++] = str[i];
         }
         str[j] = '\0';
-
-        //str = realloc(str, j * sizeof(char));     Pending TASK!!!
     }
-    
 }
 
 /**
@@ -509,7 +506,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
         char *dir = (char *)malloc(cont + 1);
         // If memory allocation fails
         if (dir == NULL) {
-            printf("Error: Assign memory failed.\n");
+            printf("Error: Assign memory failed!\n");
             return false;
         }
         // Restart the variable j to copy the directory
@@ -522,22 +519,19 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
         }
         dir[cont] = '\0';
 
-
         if(dircont == 1 && strcmp(dir, "") == 0){
             *actualpointer = *head;
         }
 
-        if( strcmp(dir, ".") == 0 ){
-            printf("Dir found: %s\n", (*actualpointer) -> name);
-        } else if(strcmp(dir, "") == 0 && dircont != 1){
-            printf("Error: Invalid route.\n");
+        if(strcmp(dir, "") == 0 && dircont != 1){
+            printf("Error: Invalid route!\n");
             free(dir);
             return false;
         } else if(strcmp(dir, "..") == 0){
             if (actualpointer && *actualpointer && (*actualpointer)->parent) {
                 *actualpointer = (*actualpointer)->parent;
             } else {
-                printf("Error: Invalid route.\n");
+                printf("Error: Invalid route!\n");
                 free(dir);
                 return false;
             }
@@ -546,7 +540,7 @@ bool pathParser(nodeStruct **actualpointer, nodeStruct **head, char *arguments){
             if(searchFile(&pointer, dir, 'D')){
                 *actualpointer = pointer;
             } else {
-                printf("Error: %s not found in %s.\n", dir, (*actualpointer) -> name);
+                printf("Error: %s not found in %s!\n", dir, (*actualpointer) -> name);
                 free(dir);
                 return false;
             }
@@ -586,7 +580,7 @@ void touchFunction(char *path, nodeStruct *currDir, nodeStruct *root){
     }
 }
 
-void mkdirFuction(char *path, nodeStruct *currDir, nodeStruct *root){
+void mkdirFunction(char *path, nodeStruct *currDir, nodeStruct *root){
 
     char *dirs;
     char *file;
@@ -701,15 +695,115 @@ void lsFunction(char *arguments, nodeStruct *currDir, nodeStruct *head){
     }
 }
 
-int main(void){
+bool generateSysFile(char *fileName, nodeStruct *head, nodeStruct **pathpointer){
 
-    // Case when an entry file is not given
-    struct nodeStruct head = {NULL, NULL, NULL, "/", 'D', ""};
+    FILE *txt_file;
+    // Opens file with read function
+    txt_file = fopen(fileName, "r");
 
-    nodeStruct *pathpointer = &head;
+    // In case the file couldn't open
+    if (txt_file == NULL) {
+        printf("Error: Couldn't open simfs.txt!\n");
+        return false;
+    }
 
-    strcpy(head.time, getDateTime());
+    // Reads the content of the file line by line
+    int line_counter = 1;
+    char linea[999];
+    while (fgets(linea, sizeof(linea), txt_file) != NULL) {
+        
+        // Get the memory space needed for path
+        int q = 0;
+        while(linea[q] != '\t'){
+            q++;
+        }
 
+        // Allocating memory for path
+        char *path = (char *)malloc(q + 1);
+
+        // Saving first occurrence of tab '\t'
+        int first_tab_occurr = q;
+
+        // Iterating through a variable number of tabs until it finds the file type
+        while(linea[first_tab_occurr] == '\t'){
+            first_tab_occurr++;
+        }
+        char fileType = linea[first_tab_occurr];
+
+        // 
+        int j = 0;
+        while(j < q){
+            path[j] = linea[j];
+            j++;
+        }
+        path[j] = '\0';
+
+        if(fileType != 'D' && fileType != 'F'){
+            printf("Error in line %d: Not valid file type!\n", line_counter);
+            return 1;
+        }  
+
+        // Verify that first directory is correct
+        if(strcmp(path, "/") != 0 && line_counter == 1){
+            printf("Error in line 1: Not valid first directory!\n");
+            return false;
+        }
+
+        // If first directory is correct, we initialize head and pathpointer
+        if(strcmp(path, "/") == 0 && line_counter == 1){
+            // Set initial value for head
+            head->parent = NULL;
+            head->child = NULL;
+            head->sibling = NULL;
+            strcpy(head->name, "/");
+            head->type = 'D';
+            strcpy(head->time, getDateTime());
+
+            // Set pathpointer
+            *pathpointer = head;
+        }
+
+        // Calls the appropiate function for each file type
+        if(fileType == 'D'){
+            mkdirFunction(path, *pathpointer, head);
+        } else {
+            touchFunction(path, *pathpointer, head);
+        }
+
+        line_counter++;
+    }   
+
+    // Close file
+    fclose(txt_file);
+
+    return true;
+}
+
+int main(int argc, char *argv[]){
+    
+    struct nodeStruct head;
+    nodeStruct *pathpointer;
+
+    if(argc > 1){
+        // Case when more than one argument is given
+        if(!generateSysFile(argv[1], &head, &pathpointer)){
+            return 1;
+        }
+
+    } else {
+        // Case when only one argument is given
+        // Set initial value for head
+        head.parent = NULL;
+        head.child = NULL;
+        head.sibling = NULL;
+        strcpy(head.name, "/");
+        head.type = 'D';
+        strcpy(head.time, getDateTime());
+
+        // Set pathpointer
+        pathpointer = &head;
+    }
+    
 	// Commands' array
     cmdStruct commands[10] = {
         {"touch", "Creates a file without any content.\n"},
@@ -729,7 +823,7 @@ int main(void){
 	while(cmdON){
         char *entry = NULL;
         size_t n = 0;
-
+        
         // Get new entry
         printf("%s", "> ");
         getline(&entry, &n, stdin);
@@ -787,7 +881,7 @@ int main(void){
 
             //mkdir
             case 6: {
-                mkdirFuction(arguments, pathpointer, &head);
+                mkdirFunction(arguments, pathpointer, &head);
                 break;
             }
 
@@ -820,7 +914,6 @@ int main(void){
                 printf("Not valid command, write help to see the list of commands availables\n");
                 break;
         }
-
         free(arguments);
         free(command);
 

@@ -1,0 +1,5 @@
+/			D
+/home			D
+/home/dir		D
+/home/dir/files		D
+/home/dir/files/docs	F
