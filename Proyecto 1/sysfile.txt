@@ -1,0 +1,5 @@
+/             17:02-2025/02/17	D	/
+Juegos        17:02-2025/02/17	D	/Juegos/
+Steam         17:03-2025/02/17	D	/Juegos/Steam/
+mario.exe     17:03-2025/02/17	F	/Juegos/Steam/mario.exe/
+Documentos    17:02-2025/02/17	D	/Documentos/
